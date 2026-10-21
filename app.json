@@ -1,11 +1,13 @@
 {
   "expo": {
-    "name": "mobile-animequiz",
+    "name": "Anime Quiz",
     "slug": "mobile-animequiz",
+    "scheme": "animequiz",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F0F18",
     "ios": {
       "supportsTablet": true
     },
@@ -19,6 +21,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-transparent.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F0F18"
+        }
+      ]
+    ]
   }
 }
