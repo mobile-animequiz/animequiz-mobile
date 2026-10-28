@@ -1,23 +1,32 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { colors, metrics, textStyles } from '../styles/theme';
 
 // Top of the Home screen: personalized greeting + avatar placeholder (initial of the name).
 export default function HomeHeader({ name }) {
+  const router = useRouter();
   const initial = name.trim().charAt(0).toUpperCase();
 
   return (
     <View style={styles.container}>
       <View style={styles.texts}>
         <Text style={styles.greeting} numberOfLines={1}>
-          Olá, {name}! 👋
+          Olá, {name}!
         </Text>
         <Text style={styles.subtitle}>Pronto para o próximo quiz?</Text>
       </View>
 
-      <View style={styles.avatar} accessible accessibilityRole="image" accessibilityLabel="Avatar do jogador">
+      <Pressable
+        onPress={() => router.push('/profile')}
+        style={styles.avatar}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Abrir perfil do jogador"
+        hitSlop={8}
+      >
         <Text style={styles.avatarInitial}>{initial}</Text>
-      </View>
+      </Pressable>
     </View>
   );
 }

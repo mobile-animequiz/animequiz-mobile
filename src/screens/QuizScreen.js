@@ -1,91 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, metrics, textStyles } from '../styles/theme';
+import { getQuizById } from '../services/quizService';
 
 // ---------------------------------------------------------------------------
 // Mock data (no API yet). `correctIndex` is the position of the right option.
 // ---------------------------------------------------------------------------
-const MOCK_QUIZ = {
-  id: 'quiz-01',
-  category: 'Shonen',
-  title: 'One Piece: A Grande Era dos Piratas',
-  questions: [
-    {
-      id: 'q1',
-      text: 'Quem é o protagonista de One Piece?',
-      options: ['Roronoa Zoro', 'Monkey D. Luffy', 'Portgas D. Ace', 'Trafalgar Law'],
-      correctIndex: 1,
-      explanation: 'Luffy sonha em encontrar o tesouro One Piece e se tornar o Rei dos Piratas.',
-    },
-    {
-      id: 'q2',
-      text: 'Qual Fruta do Diabo deu a Luffy o corpo de borracha?',
-      options: ['Mera Mera no Mi', 'Hito Hito no Mi', 'Gomu Gomu no Mi', 'Gura Gura no Mi'],
-      correctIndex: 2,
-      explanation: 'Ao comer a Gomu Gomu no Mi, o corpo de Luffy passou a ser de borracha.',
-    },
-    {
-      id: 'q3',
-      text: 'Quem deu o chapéu de palha a Luffy?',
-      options: ['Gol D. Roger', 'Barba Branca', 'Monkey D. Garp', 'Shanks'],
-      correctIndex: 3,
-      explanation: 'Shanks confiou o chapéu a Luffy e pediu que ele o devolvesse quando se tornasse um grande pirata.',
-    },
-    {
-      id: 'q4',
-      text: 'Qual membro do bando do Chapéu de Palha é o espadachim?',
-      options: ['Roronoa Zoro', 'Sanji', 'Usopp', 'Franky'],
-      correctIndex: 0,
-      explanation: 'Zoro luta com o estilo de três espadas e quer ser o maior espadachim do mundo.',
-    },
-    {
-      id: 'q5',
-      text: 'Quem é a navegadora do bando do Chapéu de Palha?',
-      options: ['Nico Robin', 'Tashigi', 'Nami', 'Vivi'],
-      correctIndex: 2,
-      explanation: 'Nami é a navegadora e cartógrafa do bando.',
-    },
-    {
-      id: 'q6',
-      text: 'Qual foi o primeiro navio do bando do Chapéu de Palha?',
-      options: ['Thousand Sunny', 'Going Merry', 'Moby Dick', 'Red Force'],
-      correctIndex: 1,
-      explanation: 'O Going Merry foi o primeiro navio do bando, antes do Thousand Sunny.',
-    },
-    {
-      id: 'q7',
-      text: 'Qual membro do bando é o cozinheiro?',
-      options: ['Usopp', 'Brook', 'Franky', 'Sanji'],
-      correctIndex: 3,
-      explanation: 'Sanji é o cozinheiro do bando e sonha em encontrar o All Blue.',
-    },
-    {
-      id: 'q8',
-      text: 'Que animal é Tony Tony Chopper?',
-      options: ['Raposa', 'Lobo', 'Rena', 'Urso'],
-      correctIndex: 2,
-      explanation: 'Chopper é uma rena que comeu a Hito Hito no Mi e é o médico do bando.',
-    },
-    {
-      id: 'q9',
-      text: 'Qual Fruta do Diabo dá a Portgas D. Ace o poder do fogo?',
-      options: ['Goro Goro no Mi', 'Mera Mera no Mi', 'Hie Hie no Mi', 'Magu Magu no Mi'],
-      correctIndex: 1,
-      explanation: 'A Mera Mera no Mi permite a Ace controlar o fogo e se transformar nele.',
-    },
-    {
-      id: 'q10',
-      text: 'Em qual cidade Gol D. Roger, o Rei dos Piratas, foi executado?',
-      options: ['Marineford', 'Alabasta', 'Water 7', 'Loguetown'],
-      correctIndex: 3,
-      explanation: 'Gol D. Roger foi executado em Loguetown, a cidade do começo e do fim.',
-    },
-  ],
-};
-
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 // Feedback colors reuse the theme's functional colors (green = easy, red = error).
@@ -100,14 +23,18 @@ const BORDER_ALPHA = '66';
 // ---------------------------------------------------------------------------
 export default function QuizScreen() {
   const router = useRouter();
+  const { quizId } = useLocalSearchParams();
   const scrollRef = useRef(null);
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [submittedAnswers, setSubmittedAnswers] = useState([]);
 
-  const quiz = MOCK_QUIZ;
+  const requestedQuiz = getQuizById(Array.isArray(quizId) ? quizId[0] : quizId || 'quiz-01');
+  const isUnavailable = !requestedQuiz || requestedQuiz.questions.length === 0;
+  const quiz = isUnavailable ? getQuizById('quiz-01') : requestedQuiz;
   const total = quiz.questions.length;
   const question = quiz.questions[questionIndex];
   const isLastQuestion = questionIndex === total - 1;
@@ -149,6 +76,12 @@ export default function QuizScreen() {
       return;
     }
     setIsConfirmed(true);
+    setSubmittedAnswers((answers) => [...answers, {
+      id: question.id,
+      question: question.text,
+      selectedAnswer: question.options[selectedIndex],
+      correctAnswer: question.options[question.correctIndex],
+    }]);
     if (selectedIndex === question.correctIndex) {
       setCorrectCount((count) => count + 1);
     }
@@ -156,13 +89,13 @@ export default function QuizScreen() {
 
   function handleNext() {
     if (isLastQuestion) {
-      // TODO: replace with the results screen, e.g.
-      // router.replace({ pathname: '/result', params: { score: correctCount, total } })
-      Alert.alert(
-        'Quiz concluído',
-        `${quiz.title}\nVocê acertou ${correctCount} de ${total} questões.`,
-        [{ text: 'Voltar', onPress: leaveQuiz }],
-      );
+      const result = {
+        quizId: quiz.id,
+        quizTitle: quiz.title,
+        category: quiz.category,
+        answers: submittedAnswers,
+      };
+      router.replace({ pathname: '/result', params: { result: JSON.stringify(result) } });
       return;
     }
 
@@ -170,6 +103,18 @@ export default function QuizScreen() {
     setSelectedIndex(null);
     setIsConfirmed(false);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }
+
+  if (isUnavailable) {
+    return (
+      <ScreenContainer>
+        <Text style={textStyles.heading}>Quiz indisponível</Text>
+        <Text style={textStyles.body}>As perguntas deste quiz ainda não foram cadastradas.</Text>
+        <Pressable onPress={() => router.replace('/home')} accessibilityRole="button" accessibilityLabel="Voltar para a Home">
+          <Text style={textStyles.body}>Voltar para a Home</Text>
+        </Pressable>
+      </ScreenContainer>
+    );
   }
 
   const actionLabel = !isConfirmed

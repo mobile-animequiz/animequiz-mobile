@@ -10,45 +10,11 @@ import { colors, metrics, textStyles } from '../styles/theme';
 import { formatNumber, formatQuestionCount } from '../utils/formatters';
 import { getLevelProgress } from '../utils/progress';
 
-// ---------------------------------------------------------------------------
-// Mock data (no API yet). It mimics the database shape of the Many-to-Many
-// relation between users and quizzes: a "quizzes" table, a join table
-// ("user_favorite_quizzes") and the screen resolves the current user's favorites.
-// ---------------------------------------------------------------------------
-const MOCK_USER = {
-  id: 'user-1',
-  name: 'Otaku Silva',
-  email: 'otaku@example.com',
-  level: 7,
-  rankTitle: 'Caçador de Animes',
-  xp: 2450,
-  levelStartXp: 2000,
-  nextLevelXp: 3000,
-  completedQuizzes: 24,
-  correctAnswers: 243,
-  totalAnswers: 312,
-};
+import { getQuizCatalog } from '../services/quizService';
+import { MOCK_PROFILE, MOCK_USER_FAVORITES } from '../utils/mockData';
 
-// difficulty: 'easy' | 'medium' | 'hard'
-const MOCK_QUIZZES = [
-  { id: 'quiz-01', category: 'Shonen', title: 'One Piece: A Grande Era dos Piratas', questionCount: 15, difficulty: 'medium' },
-  { id: 'quiz-02', category: 'Shonen', title: 'Naruto: O Caminho Ninja', questionCount: 10, difficulty: 'easy' },
-  { id: 'quiz-03', category: 'Shonen', title: 'Dragon Ball: Poder de Luta', questionCount: 12, difficulty: 'hard' },
-  { id: 'quiz-04', category: 'Seinen', title: 'Berserk: A Era de Ouro', questionCount: 20, difficulty: 'hard' },
-  { id: 'quiz-05', category: 'Seinen', title: 'Vinland Saga: Rumo ao Oeste', questionCount: 12, difficulty: 'medium' },
-  { id: 'quiz-06', category: 'Shojo', title: 'Fruits Basket: O Zodíaco', questionCount: 10, difficulty: 'easy' },
-  { id: 'quiz-08', category: 'Josei', title: 'Nana: Vidas Cruzadas', questionCount: 12, difficulty: 'medium' },
-  { id: 'quiz-10', category: 'Kodomo', title: 'Pokémon: Mestre de Kanto', questionCount: 10, difficulty: 'easy' },
-];
-
-const MOCK_USER_FAVORITES = [
-  { userId: 'user-1', quizId: 'quiz-01' },
-  { userId: 'user-1', quizId: 'quiz-04' },
-  { userId: 'user-1', quizId: 'quiz-06' },
-  { userId: 'user-1', quizId: 'quiz-08' },
-  { userId: 'user-1', quizId: 'quiz-10' },
-  { userId: 'user-2', quizId: 'quiz-02' }, // another user's favorite: must not show up here
-];
+const MOCK_USER = MOCK_PROFILE;
+const MOCK_QUIZZES = getQuizCatalog();
 
 const DIFFICULTY = {
   easy: { label: 'Fácil', color: colors.difficultyEasy },
@@ -105,9 +71,8 @@ export default function ProfileScreen() {
     setFavoriteQuizIds((ids) => ids.filter((id) => id !== quizId));
   }
 
-  function playQuiz() {
-    // TODO: pass the quiz id once the quiz screen reads it (e.g. router.push(`/quiz/${quizId}`)).
-    router.push('/quiz');
+  function playQuiz(quiz) {
+    router.push({ pathname: '/quiz', params: { quizId: quiz.id } });
   }
 
   function logout() {
@@ -212,7 +177,7 @@ export default function ProfileScreen() {
               <FavoriteCard
                 key={quiz.id}
                 quiz={quiz}
-                onPlay={playQuiz}
+                onPlay={() => playQuiz(quiz)}
                 onRemove={() => removeFavorite(quiz.id)}
               />
             ))}

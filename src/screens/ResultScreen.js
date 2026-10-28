@@ -1,32 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, metrics, textStyles } from '../styles/theme';
 
-// ---------------------------------------------------------------------------
-// Mock data (no API yet). Mirrors the answers of the mocked QuizScreen:
-// 7 right and 3 wrong. `isCorrect` is derived from selectedAnswer === correctAnswer.
-// ---------------------------------------------------------------------------
 const XP_PER_CORRECT_ANSWER = 20;
-
-const MOCK_RESULT = {
-  quizTitle: 'One Piece: A Grande Era dos Piratas',
-  category: 'Shonen',
-  answers: [
-    { id: 'q1', question: 'Quem é o protagonista de One Piece?', selectedAnswer: 'Monkey D. Luffy', correctAnswer: 'Monkey D. Luffy' },
-    { id: 'q2', question: 'Qual Fruta do Diabo deu a Luffy o corpo de borracha?', selectedAnswer: 'Gomu Gomu no Mi', correctAnswer: 'Gomu Gomu no Mi' },
-    { id: 'q3', question: 'Quem deu o chapéu de palha a Luffy?', selectedAnswer: 'Gol D. Roger', correctAnswer: 'Shanks' },
-    { id: 'q4', question: 'Qual membro do bando do Chapéu de Palha é o espadachim?', selectedAnswer: 'Roronoa Zoro', correctAnswer: 'Roronoa Zoro' },
-    { id: 'q5', question: 'Quem é a navegadora do bando do Chapéu de Palha?', selectedAnswer: 'Nami', correctAnswer: 'Nami' },
-    { id: 'q6', question: 'Qual foi o primeiro navio do bando do Chapéu de Palha?', selectedAnswer: 'Thousand Sunny', correctAnswer: 'Going Merry' },
-    { id: 'q7', question: 'Qual membro do bando é o cozinheiro?', selectedAnswer: 'Sanji', correctAnswer: 'Sanji' },
-    { id: 'q8', question: 'Que animal é Tony Tony Chopper?', selectedAnswer: 'Rena', correctAnswer: 'Rena' },
-    { id: 'q9', question: 'Qual Fruta do Diabo dá a Portgas D. Ace o poder do fogo?', selectedAnswer: 'Goro Goro no Mi', correctAnswer: 'Mera Mera no Mi' },
-    { id: 'q10', question: 'Em qual cidade Gol D. Roger, o Rei dos Piratas, foi executado?', selectedAnswer: 'Loguetown', correctAnswer: 'Loguetown' },
-  ],
-};
 
 // Feedback colors reuse the theme's functional colors (green = easy, red = error).
 const CORRECT_COLOR = colors.difficultyEasy;
@@ -78,9 +57,19 @@ function getPerformance(percent) {
 // ---------------------------------------------------------------------------
 export default function ResultScreen() {
   const router = useRouter();
+  const { result: resultParam } = useLocalSearchParams();
   const [filter, setFilter] = useState(FILTER_ALL);
 
-  const summary = useMemo(() => buildSummary(MOCK_RESULT), []);
+  const result = useMemo(() => {
+    try {
+      const parsed = JSON.parse(Array.isArray(resultParam) ? resultParam[0] : resultParam || '');
+      if (parsed && Array.isArray(parsed.answers)) return parsed;
+    } catch {
+      // Invalid or missing route data is handled by the empty-result fallback below.
+    }
+    return { quizTitle: '', category: '', answers: [] };
+  }, [resultParam]);
+  const summary = useMemo(() => buildSummary(result), [result]);
   const performance = getPerformance(summary.percent);
   const visibleAnswers =
     filter === FILTER_WRONG ? summary.answers.filter((answer) => !answer.isCorrect) : summary.answers;
@@ -94,7 +83,7 @@ export default function ResultScreen() {
   }, [router]);
 
   function playAgain() {
-    router.replace('/quiz');
+    router.replace({ pathname: '/quiz', params: { quizId: result.quizId || 'quiz-01' } });
   }
 
   // Android back button goes Home too (iOS swipe-back is disabled below).
@@ -124,7 +113,7 @@ export default function ResultScreen() {
           {/* Score */}
           <View style={styles.scoreCard}>
             <Text style={textStyles.caption} numberOfLines={1}>
-              {MOCK_RESULT.category} - {MOCK_RESULT.quizTitle}
+              {result.category} - {result.quizTitle}
             </Text>
             <Text style={styles.percent} accessibilityLabel={`${summary.percent} por cento de acertos`}>
               {summary.percent}%

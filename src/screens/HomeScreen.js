@@ -1,4 +1,5 @@
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import CategoryChips from '../components/CategoryChips';
 import HomeHeader from '../components/HomeHeader';
@@ -13,11 +14,11 @@ import { metrics, textStyles } from '../styles/theme';
 // Data comes from useHomeData (mock for now); the Figma file has no Home, so the layout is built
 // only from the shared tokens in src/styles.
 export default function HomeScreen() {
+  const router = useRouter();
   const { player, categories, selectedCategoryId, selectCategory, quizzes } = useHomeData();
 
   function handlePlay(quiz) {
-    // TODO: open the quiz screen (e.g. router.push(`/quiz/${quiz.id}`)) once it exists.
-    Alert.alert('Em breve', `O quiz "${quiz.title}" abrirá aqui quando a tela de perguntas estiver pronta.`);
+    router.push({ pathname: '/quiz', params: { quizId: quiz.id } });
   }
 
   const header = (

@@ -1,12 +1,8 @@
 import { useMemo, useState } from 'react';
 
 import { getLevelProgress } from '../utils/progress';
-import {
-  ALL_CATEGORIES_ID,
-  MOCK_CATEGORIES,
-  MOCK_PLAYER,
-  MOCK_QUIZZES,
-} from '../utils/mockData';
+import { ALL_CATEGORIES_ID, MOCK_CATEGORIES, MOCK_PLAYER } from '../utils/mockData';
+import { getQuizCatalog } from '../services/quizService';
 
 // Logic of the Home screen: player status, category filter (useState) and the filtered quiz list.
 // Everything comes from mock data for now; swap the sources here (or call a service in an
@@ -20,13 +16,10 @@ export default function useHomeData() {
   );
 
   const quizzes = useMemo(() => {
-    const labels = Object.fromEntries(MOCK_CATEGORIES.map((category) => [category.id, category.label]));
-    const visible =
-      selectedCategoryId === ALL_CATEGORIES_ID
-        ? MOCK_QUIZZES
-        : MOCK_QUIZZES.filter((quiz) => quiz.categoryId === selectedCategoryId);
-
-    return visible.map((quiz) => ({ ...quiz, categoryLabel: labels[quiz.categoryId] }));
+    const catalog = getQuizCatalog();
+    return selectedCategoryId === ALL_CATEGORIES_ID
+      ? catalog
+      : catalog.filter((quiz) => quiz.categoryId === selectedCategoryId);
   }, [selectedCategoryId]);
 
   return {

@@ -36,3 +36,29 @@ export const MOCK_QUIZZES = [
   { id: 'quiz-10', categoryId: 'kodomo', title: 'Pokémon: Mestre de Kanto', questionCount: 10, difficulty: 'easy' },
   { id: 'quiz-11', categoryId: 'kodomo', title: 'Doraemon: Gadgets do Futuro', questionCount: 10, difficulty: 'easy' },
 ];
+
+
+// Shared profile mock. Keep display-ready user fields in one place until the API exists.
+export const MOCK_PROFILE = {
+  id: 'user-1',
+  name: 'Otaku Silva',
+  email: 'otaku@example.com',
+  level: 7,
+  rankTitle: 'Caçador de Animes',
+  xp: 2450,
+  levelStartXp: 2000,
+  nextLevelXp: 3000,
+  completedQuizzes: 24,
+  correctAnswers: 243,
+  totalAnswers: 312,
+};
+
+// Mock join table for the user_favorite_quizzes relationship.
+export const MOCK_USER_FAVORITES = [
+  { userId: 'user-1', quizId: 'quiz-01' },
+  { userId: 'user-1', quizId: 'quiz-04' },
+  { userId: 'user-1', quizId: 'quiz-06' },
+  { userId: 'user-1', quizId: 'quiz-08' },
+  { userId: 'user-1', quizId: 'quiz-10' },
+  { userId: 'user-2', quizId: 'quiz-02' },
+];
