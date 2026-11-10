@@ -1,11 +1,12 @@
 import { useState } from 'react';
 
-import { login } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
 import { isValidEmail } from '../utils/validators';
 
 // State + validation + submit logic of the Log In screen.
 // `onSuccess` is injected by the screen so this hook stays navigation-agnostic.
 export default function useLoginForm({ onSuccess } = {}) {
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
@@ -46,7 +47,7 @@ export default function useLoginForm({ onSuccess } = {}) {
 
     setIsLoading(true);
     try {
-      await login({ email: email.trim(), password });
+      await signIn({ email: email.trim(), password });
       onSuccess?.();
     } catch (error) {
       setErrors({ form: error.message || 'Could not log in. Please try again.' });

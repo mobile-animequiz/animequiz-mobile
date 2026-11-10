@@ -1,42 +1,65 @@
-// Authentication service layer.
-//
-// The backend is not available yet, so the email flows below only simulate a
-// network round trip. Replace the bodies with real requests when the API is
-// ready, e.g.:
-//   const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/login`, { ... });
-// The hooks in src/hooks only depend on the signatures (and thrown errors) here.
+import { apiPost } from './apiClient';
+import { clearAccessToken, saveAccessToken } from './authStorage';
 
-const MOCK_DELAY_MS = 900;
+function unwrapResponse(response) {
+  if (response && typeof response === 'object' && response.data && typeof response.data === 'object') {
+    return { ...response.data, ...response };
+  }
 
-const PROVIDER_LABELS = {
-  google: 'Google',
-};
-
-function wait(milliseconds = MOCK_DELAY_MS) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  return response ?? {};
 }
 
-/** @param {{ email: string, password: string }} credentials */
+function getAccessToken(response) {
+  const payload = unwrapResponse(response);
+  const token = payload.accessToken ?? payload.access_token ?? payload.token ?? payload.jwt;
+  return typeof token === 'string' && token.trim() ? token : null;
+}
+
+function getUser(response) {
+  const payload = unwrapResponse(response);
+  return payload.user ?? payload.usuario ?? null;
+}
+
+async function persistSession(response) {
+  const token = getAccessToken(response);
+  if (!token) {
+    throw new Error('A resposta da API não contém accessToken. Confira o contrato do endpoint de autenticação.');
+  }
+
+  await saveAccessToken(token);
+  return { token, user: getUser(response) };
+}
+
+/** Authenticates a player using the backend JWT endpoint. */
 export async function login(credentials) {
-  await wait();
-  return { email: credentials.email };
+  const response = await apiPost('auth/login', credentials, { skipAuth: true });
+  return persistSession(response);
 }
 
-/** @param {{ birthDate: string, email: string, password: string }} data */
+/** Creates an account and establishes a session. */
 export async function register(data) {
-  await wait();
-  return { email: data.email };
+  const response = await apiPost('auth/register', data, { skipAuth: true });
+  const token = getAccessToken(response);
+
+  if (token) {
+    return persistSession(response);
+  }
+
+  // Some APIs return only the created user from registration. In that case,
+  // authenticate immediately using the credentials just created.
+  return login({ email: data.email, password: data.password });
 }
 
-/** @param {{ email: string }} data */
-export async function sendPasswordResetLink(data) {
-  await wait();
-  return { email: data.email };
+export async function logout() {
+  await clearAccessToken();
 }
 
-/** @param {'google'} provider */
+/** Password recovery stays disabled until the backend publishes its contract. */
+export async function sendPasswordResetLink() {
+  throw new Error('A recuperação de senha ainda não está disponível na API.');
+}
+
+/** Social authentication requires provider credentials and backend configuration. */
 export async function signInWithProvider(provider) {
-  // Real social sign-in needs provider credentials (Google / Apple console).
-  // Failing loudly is better than pretending the user was authenticated.
-  throw new Error(`Sign in with ${PROVIDER_LABELS[provider] ?? provider} is not configured yet.`);
+  throw new Error(`O login com ${provider} ainda não está configurado.`);
 }

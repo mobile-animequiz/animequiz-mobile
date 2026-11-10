@@ -1,12 +1,13 @@
 import { useState } from 'react';
 
-import { register } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
 import { formatBirthDateInput } from '../utils/formatters';
 import { PASSWORD_MIN_LENGTH, isValidBirthDate, isValidEmail, isValidPassword } from '../utils/validators';
 
 // State + validation + submit logic of the Create Account screen.
 // `onSuccess` is injected by the screen so this hook stays navigation-agnostic.
 export default function useCreateAccountForm({ onSuccess } = {}) {
+  const { signUp } = useAuth();
   const [birthDate, setBirthDate] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,7 +57,7 @@ export default function useCreateAccountForm({ onSuccess } = {}) {
 
     setIsLoading(true);
     try {
-      await register({ birthDate, email: email.trim(), password });
+      await signUp({ birthDate, email: email.trim(), password });
       onSuccess?.();
     } catch (error) {
       setErrors({ form: error.message || 'Could not create the account. Please try again.' });
