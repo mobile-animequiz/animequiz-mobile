@@ -1,5 +1,8 @@
 import { Animated, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
+
+import { useAuth } from '../contexts/AuthContext';
 
 import Logo from '../components/Logo';
 import ScreenContainer from '../components/ScreenContainer';
@@ -9,9 +12,17 @@ import useSplashAnimation from '../hooks/useSplashAnimation';
 // (replace, so "back" never returns to the splash).
 export default function SplashScreen() {
   const router = useRouter();
+  const { isReady, isAuthenticated } = useAuth();
+  const [animationFinished, setAnimationFinished] = useState(false);
   const { opacity, scale } = useSplashAnimation({
-    onFinish: () => router.replace('/welcome'),
+    onFinish: () => setAnimationFinished(true),
   });
+
+  useEffect(() => {
+    if (animationFinished && isReady) {
+      router.replace(isAuthenticated ? '/home' : '/welcome');
+    }
+  }, [animationFinished, isReady, isAuthenticated, router]);
   const animatedStyle = { opacity, transform: [{ scale }] };
 
   return (
