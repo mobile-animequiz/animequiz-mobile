@@ -1,80 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo } from 'react';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, metrics, textStyles } from '../styles/theme';
 
-const XP_PER_CORRECT_ANSWER = 20;
-
-// Feedback colors reuse the theme's functional colors (green = easy, red = error).
-const CORRECT_COLOR = colors.difficultyEasy;
-const INCORRECT_COLOR = colors.error;
-
-const FILTER_ALL = 'all';
-const FILTER_WRONG = 'wrong';
-
-// ---------------------------------------------------------------------------
-// Pure helpers
-// ---------------------------------------------------------------------------
-function buildSummary(result) {
-  const answers = result.answers.map((answer, index) => ({
-    ...answer,
-    number: index + 1,
-    isCorrect: answer.selectedAnswer === answer.correctAnswer,
-  }));
-  const total = answers.length;
-  const correctCount = answers.filter((answer) => answer.isCorrect).length;
-
-  return {
-    answers,
-    total,
-    correctCount,
-    wrongCount: total - correctCount,
-    percent: total === 0 ? 0 : Math.round((correctCount / total) * 100),
-    xpEarned: correctCount * XP_PER_CORRECT_ANSWER,
-  };
-}
-
-function getPerformance(percent) {
-  if (percent === 100) {
-    return { title: 'Perfeito!', message: 'Você acertou todas as perguntas. Um verdadeiro mestre dos animes.' };
-  }
-  if (percent >= 80) {
-    return { title: 'Excelente!', message: 'Seu conhecimento sobre anime impressiona.' };
-  }
-  if (percent >= 60) {
-    return { title: 'Mandou bem!', message: 'Você está no caminho certo. Jogue de novo para melhorar a pontuação.' };
-  }
-  if (percent >= 40) {
-    return { title: 'Bom começo', message: 'Continue jogando para dominar mais títulos.' };
-  }
-  return { title: 'Continue treinando', message: 'Revise as respostas abaixo e tente outra vez.' };
-}
-
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
+// The result is the validated response returned by POST /quizzes/{quizId}/attempts.
+// Never calculate correctness or points on the device.
 export default function ResultScreen() {
   const router = useRouter();
   const { result: resultParam } = useLocalSearchParams();
-  const [filter, setFilter] = useState(FILTER_ALL);
 
   const result = useMemo(() => {
     try {
       const parsed = JSON.parse(Array.isArray(resultParam) ? resultParam[0] : resultParam || '');
-      if (parsed && Array.isArray(parsed.answers)) return parsed;
+      if (
+        parsed && typeof parsed === 'object'
+        && Number.isInteger(parsed.points)
+        && Number.isInteger(parsed.correctAnswers)
+        && Number.isInteger(parsed.totalQuestions)
+        && Number.isInteger(parsed.answeredQuestions)
+        && typeof parsed.quizTitle === 'string'
+      ) {
+        return parsed;
+      }
     } catch {
-      // Invalid or missing route data is handled by the empty-result fallback below.
+      // Missing or invalid navigation data does not turn into a fictitious result.
     }
-    return { quizTitle: '', category: '', answers: [] };
+    return null;
   }, [resultParam]);
-  const summary = useMemo(() => buildSummary(result), [result]);
-  const performance = getPerformance(summary.percent);
-  const visibleAnswers =
-    filter === FILTER_WRONG ? summary.answers.filter((answer) => !answer.isCorrect) : summary.answers;
 
-  // Leaves the finished quiz behind: clears the history and lands on Home.
   const goHome = useCallback(() => {
     if (router.canDismiss()) {
       router.dismissAll();
@@ -82,11 +37,6 @@ export default function ResultScreen() {
     router.replace('/home');
   }, [router]);
 
-  function playAgain() {
-    router.replace({ pathname: '/quiz', params: { quizId: result.quizId || 'quiz-01' } });
-  }
-
-  // Android back button goes Home too (iOS swipe-back is disabled below).
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       goHome();
@@ -98,413 +48,76 @@ export default function ResultScreen() {
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: false }} />
-
-      <ScreenContainer scrollable={false} padded={false}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Headline */}
-          <View style={styles.headline}>
-            <Text style={styles.tag}>Quiz concluído</Text>
-            <Text style={styles.headlineTitle} accessibilityRole="header">
-              {performance.title}
+      <ScreenContainer>
+        <View style={styles.content}>
+          <Text style={styles.tag}>{result ? 'Quiz concluído' : 'Resultado indisponível'}</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            {result ? `${result.points} pontos` : 'Resultado indisponível'}
+          </Text>
+          {result ? (
+            <>
+              <Text style={textStyles.caption}>{result.quizTitle}</Text>
+              <Text style={textStyles.body}>
+                {result.correctAnswers} de {result.totalQuestions} questões corretas
+              </Text>
+              <Text style={textStyles.caption}>
+                {result.answeredQuestions} {result.answeredQuestions === 1 ? 'questão respondida' : 'questões respondidas'}
+              </Text>
+            </>
+          ) : (
+            <Text style={textStyles.body}>
+              Não foi possível recuperar o resultado desta tentativa.
             </Text>
-            <Text style={styles.headlineMessage}>{performance.message}</Text>
-          </View>
-
-          {/* Score */}
-          <View style={styles.scoreCard}>
-            <Text style={textStyles.caption} numberOfLines={1}>
-              {result.category} - {result.quizTitle}
-            </Text>
-            <Text style={styles.percent} accessibilityLabel={`${summary.percent} por cento de acertos`}>
-              {summary.percent}%
-            </Text>
-            <Text style={styles.scoreText}>
-              {summary.correctCount} de {summary.total} questões corretas
-            </Text>
-
-            <View style={styles.segments}>
-              {summary.answers.map((answer) => (
-                <View
-                  key={answer.id}
-                  style={[styles.segment, answer.isCorrect ? styles.segmentCorrect : styles.segmentWrong]}
-                  accessible
-                  accessibilityLabel={`Questão ${answer.number}: ${answer.isCorrect ? 'correta' : 'incorreta'}`}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Stats */}
-          <View style={styles.stats}>
-            <StatTile value={summary.correctCount} label="Acertos" color={CORRECT_COLOR} />
-            <StatTile value={summary.wrongCount} label="Erros" color={INCORRECT_COLOR} />
-            <StatTile value={`+${summary.xpEarned}`} label="XP ganho" color={colors.accent} />
-          </View>
-
-          {/* Review */}
-          <View style={styles.reviewHeader}>
-            <Text style={textStyles.heading} accessibilityRole="header">
-              Revisão das respostas
-            </Text>
-          </View>
-
-          {summary.wrongCount > 0 ? (
-            <View style={styles.filters}>
-              <FilterChip
-                label={`Todas (${summary.total})`}
-                selected={filter === FILTER_ALL}
-                onPress={() => setFilter(FILTER_ALL)}
-              />
-              <FilterChip
-                label={`Erros (${summary.wrongCount})`}
-                selected={filter === FILTER_WRONG}
-                onPress={() => setFilter(FILTER_WRONG)}
-              />
-            </View>
-          ) : null}
-
-          <View style={styles.reviewCard}>
-            {visibleAnswers.map((answer, index) => (
-              <ReviewRow key={answer.id} answer={answer} showDivider={index > 0} />
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* Controls */}
+          )}
+        </View>
         <View style={styles.footer}>
-          <ActionButton label="Jogar novamente" variant="primary" onPress={playAgain} />
-          <ActionButton label="Voltar ao início" variant="secondary" onPress={goHome} />
+          <Pressable
+            onPress={goHome}
+            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar ao início"
+          >
+            <Text style={styles.buttonLabel}>Voltar ao início</Text>
+          </Pressable>
         </View>
       </ScreenContainer>
     </>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Local components
-// ---------------------------------------------------------------------------
-function StatTile({ value, label, color }) {
-  return (
-    <View style={styles.tile} accessible accessibilityLabel={`${label}: ${value}`}>
-      <Text style={[styles.tileValue, { color }]}>{value}</Text>
-      <Text style={textStyles.caption}>{label}</Text>
-    </View>
-  );
-}
-
-function FilterChip({ label, selected, onPress }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        selected ? styles.chipSelected : styles.chipIdle,
-        pressed && styles.pressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-    >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function ReviewRow({ answer, showDivider }) {
-  return (
-    <View style={[styles.reviewRow, showDivider && styles.reviewDivider]}>
-      <ResultMark correct={answer.isCorrect} />
-
-      <View style={styles.reviewBody}>
-        <Text style={styles.reviewQuestion}>
-          {answer.number}. {answer.question}
-        </Text>
-
-        {answer.isCorrect ? (
-          <Text style={[textStyles.caption, { color: CORRECT_COLOR }]}>{answer.correctAnswer}</Text>
-        ) : (
-          <>
-            <Text style={[textStyles.caption, { color: INCORRECT_COLOR }]}>
-              Sua resposta: {answer.selectedAnswer}
-            </Text>
-            <Text style={[textStyles.caption, { color: CORRECT_COLOR }]}>
-              Resposta certa: {answer.correctAnswer}
-            </Text>
-          </>
-        )}
-      </View>
-    </View>
-  );
-}
-
-function ActionButton({ label, variant, onPress }) {
-  const isPrimary = variant === 'primary';
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.action,
-        isPrimary ? styles.actionPrimary : styles.actionSecondary,
-        pressed && styles.pressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Text style={[styles.actionLabel, !isPrimary && styles.actionLabelSecondary]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-// Check / cross drawn with Views (no emoji, no icon font).
-function ResultMark({ correct }) {
-  return (
-    <View
-      style={[styles.mark, correct ? styles.markCorrect : styles.markWrong]}
-      accessible
-      accessibilityLabel={correct ? 'Correta' : 'Incorreta'}
-    >
-      {correct ? (
-        <View style={styles.check} />
-      ) : (
-        <View style={styles.cross}>
-          <View style={[styles.crossBar, styles.rotatePositive]} />
-          <View style={[styles.crossBar, styles.rotateNegative]} />
-        </View>
-      )}
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.85,
-  },
-  rotatePositive: {
-    transform: [{ rotate: '45deg' }],
-  },
-  rotateNegative: {
-    transform: [{ rotate: '-45deg' }],
-  },
-
-  scroll: {
+  content: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: metrics.homePaddingX,
-    paddingTop: metrics.homeSectionGap,
-    paddingBottom: metrics.cardPadding,
-  },
-
-  // Headline
-  headline: {
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: metrics.cardGap,
   },
   tag: {
     ...textStyles.caption,
     color: colors.accent,
-    fontWeight: '600',
-    letterSpacing: 0.8,
     textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
-  headlineTitle: {
+  title: {
     ...textStyles.title,
-    marginTop: 8,
     textAlign: 'center',
   },
-  headlineMessage: {
-    ...textStyles.body,
-    maxWidth: 300,
-    marginTop: 6,
-    textAlign: 'center',
-    color: colors.textSecondary,
-  },
-
-  // Score card
-  scoreCard: {
-    alignItems: 'center',
-    marginTop: metrics.homeSectionGap,
-    padding: 20,
-    borderRadius: metrics.cardRadius,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  percent: {
-    marginTop: 8,
-    fontSize: 56,
-    lineHeight: 64,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  scoreText: {
-    ...textStyles.body,
-    color: colors.textSecondary,
-  },
-  segments: {
-    flexDirection: 'row',
-    alignSelf: 'stretch',
-    gap: 4,
-    marginTop: 20,
-  },
-  segment: {
-    flex: 1,
-    height: metrics.progressHeight,
-    borderRadius: metrics.progressHeight / 2,
-  },
-  segmentCorrect: {
-    backgroundColor: CORRECT_COLOR,
-  },
-  segmentWrong: {
-    backgroundColor: INCORRECT_COLOR,
-  },
-
-  // Stats
-  stats: {
-    flexDirection: 'row',
-    gap: metrics.cardGap,
-    marginTop: metrics.cardGap,
-  },
-  tile: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: metrics.cardRadius,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  tileValue: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '700',
-  },
-
-  // Review
-  reviewHeader: {
-    marginTop: metrics.homeSectionGap,
-  },
-  filters: {
-    flexDirection: 'row',
-    gap: metrics.chipGap,
-    marginTop: metrics.cardGap,
-  },
-  chip: {
-    height: metrics.chipHeight,
-    paddingHorizontal: metrics.chipPaddingX,
-    borderRadius: metrics.chipRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  chipIdle: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.surfaceBorder,
-  },
-  chipSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipLabel: {
-    ...textStyles.button,
-    color: colors.textSecondary,
-  },
-  chipLabelSelected: {
-    color: colors.textPrimary,
-  },
-  reviewCard: {
-    marginTop: metrics.cardGap,
-    borderRadius: metrics.cardRadius,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-    overflow: 'hidden',
-  },
-  reviewRow: {
-    flexDirection: 'row',
-    gap: metrics.cardGap,
-    padding: 14,
-  },
-  reviewDivider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceBorder,
-  },
-  reviewBody: {
-    flex: 1,
-    gap: 2,
-  },
-  reviewQuestion: {
-    ...textStyles.body,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  mark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markCorrect: {
-    backgroundColor: CORRECT_COLOR,
-  },
-  markWrong: {
-    backgroundColor: INCORRECT_COLOR,
-  },
-  check: {
-    width: 5,
-    height: 10,
-    marginTop: -2,
-    borderRightWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.textPrimary,
-    transform: [{ rotate: '45deg' }],
-  },
-  cross: {
-    width: 10,
-    height: 10,
-  },
-  crossBar: {
-    position: 'absolute',
-    top: 4,
-    left: 0,
-    width: 10,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.textPrimary,
-  },
-
-  // Controls
   footer: {
-    gap: metrics.cardGap,
-    paddingHorizontal: metrics.homePaddingX,
-    paddingTop: metrics.cardGap,
-    paddingBottom: metrics.cardPadding,
+    width: '100%',
   },
-  action: {
-    height: metrics.buttonHeight,
+  button: {
+    minHeight: metrics.buttonHeight,
     borderRadius: metrics.buttonRadius,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  actionPrimary: {
     backgroundColor: colors.accent,
+    paddingHorizontal: metrics.homePaddingX,
   },
-  actionSecondary: {
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  actionLabel: {
+  buttonLabel: {
     ...textStyles.button,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    color: colors.textPrimary,
   },
-  actionLabelSecondary: {
-    fontWeight: '500',
-    letterSpacing: 0,
+  pressed: {
+    opacity: 0.85,
   },
 });

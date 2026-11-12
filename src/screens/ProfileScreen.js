@@ -2,19 +2,19 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { useAuth } from '../contexts/AuthContext';
+
 import Icon from '../components/Icon';
 import PlayButton from '../components/PlayButton';
 import ScreenContainer from '../components/ScreenContainer';
 import useGoBack from '../hooks/useGoBack';
 import { colors, metrics, textStyles } from '../styles/theme';
 import { formatNumber, formatQuestionCount } from '../utils/formatters';
-import { getLevelProgress } from '../utils/progress';
+import useProfileData from '../hooks/useProfileData';
 
-import { getQuizCatalog } from '../services/quizService';
-import { MOCK_PROFILE, MOCK_USER_FAVORITES } from '../utils/mockData';
+import { MOCK_PROFILE, MOCK_USER_FAVORITES, MOCK_QUIZZES } from '../utils/mockData';
 
 const MOCK_USER = MOCK_PROFILE;
-const MOCK_QUIZZES = getQuizCatalog();
 
 const DIFFICULTY = {
   easy: { label: 'Fácil', color: colors.difficultyEasy },
@@ -51,6 +51,8 @@ function getSavedLabel(count) {
 // ---------------------------------------------------------------------------
 export default function ProfileScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
+  const { profile, progress, hitRate, isLoading, error, refresh } = useProfileData();
   const goBack = useGoBack('/home');
 
   // Favorites = rows of the join table that belong to the current user.
@@ -63,9 +65,6 @@ export default function ProfileScreen() {
     [favoriteQuizIds],
   );
 
-  const progress = getLevelProgress(MOCK_USER);
-  const hitRate =
-    MOCK_USER.totalAnswers === 0 ? 0 : Math.round((MOCK_USER.correctAnswers / MOCK_USER.totalAnswers) * 100);
 
   function removeFavorite(quizId) {
     setFavoriteQuizIds((ids) => ids.filter((id) => id !== quizId));
@@ -75,12 +74,16 @@ export default function ProfileScreen() {
     router.push({ pathname: '/quiz', params: { quizId: quiz.id } });
   }
 
-  function logout() {
-    // TODO: clear the session / token here once real authentication exists.
-    if (router.canDismiss()) {
-      router.dismissAll();
+  async function logout() {
+    try {
+      await signOut();
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+      router.replace('/welcome');
+    } catch {
+      Alert.alert('Não foi possível sair', 'Tente novamente.');
     }
-    router.replace('/welcome');
   }
 
   function confirmLogout() {
@@ -109,19 +112,27 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {isLoading ? <Text style={styles.emptyText}>Carregando perfil...</Text> : null}
+        {error ? (
+          <Pressable onPress={refresh} style={styles.empty} accessibilityRole="button">
+            <Text style={textStyles.heading}>Não foi possível carregar o perfil</Text>
+            <Text style={styles.emptyText}>{error}</Text>
+            <Text style={styles.emptyButtonLabel}>Tentar novamente</Text>
+          </Pressable>
+        ) : null}
         {/* Player card */}
         <View style={styles.playerCard}>
           <View style={styles.identity}>
             <View style={styles.avatar} accessible accessibilityRole="image" accessibilityLabel="Avatar do jogador">
-              <Text style={styles.avatarInitials}>{getInitials(MOCK_USER.name)}</Text>
+              <Text style={styles.avatarInitials}>{getInitials(profile.name)}</Text>
             </View>
 
             <View style={styles.identityTexts}>
               <Text style={textStyles.title} numberOfLines={1}>
-                {MOCK_USER.name}
+                {profile.name}
               </Text>
               <Text style={styles.email} numberOfLines={1}>
-                {MOCK_USER.email}
+                {profile.email}
               </Text>
             </View>
           </View>
@@ -130,8 +141,8 @@ export default function ProfileScreen() {
 
           <View style={styles.levelRow}>
             <View>
-              <Text style={textStyles.heading}>Nível {MOCK_USER.level}</Text>
-              <Text style={textStyles.caption}>{MOCK_USER.rankTitle}</Text>
+              <Text style={textStyles.heading}>Nível {profile.level}</Text>
+              <Text style={textStyles.caption}>{profile.rankTitle}</Text>
             </View>
             <Text style={styles.levelPercent}>{progress.percent}%</Text>
           </View>
@@ -140,7 +151,7 @@ export default function ProfileScreen() {
             style={styles.track}
             accessible
             accessibilityRole="progressbar"
-            accessibilityLabel={`Progresso para o nível ${MOCK_USER.level + 1}`}
+            accessibilityLabel={`Progresso para o nível ${profile.level + 1}`}
             accessibilityValue={{ min: 0, max: 100, now: progress.percent }}
           >
             <View style={[styles.fill, { width: `${progress.percent}%` }]} />
@@ -148,18 +159,18 @@ export default function ProfileScreen() {
 
           <View style={styles.levelRow}>
             <Text style={textStyles.caption}>
-              {formatNumber(progress.remainingXp)} XP para o nível {MOCK_USER.level + 1}
+              {formatNumber(progress.remainingXp)} XP para o nível {profile.level + 1}
             </Text>
             <Text style={textStyles.caption}>
-              {formatNumber(MOCK_USER.xp)} / {formatNumber(MOCK_USER.nextLevelXp)} XP
+              {formatNumber(profile.xp)} / {formatNumber(profile.nextLevelXp)} XP
             </Text>
           </View>
         </View>
 
         {/* Stats */}
         <View style={styles.stats}>
-          <StatTile value={formatNumber(MOCK_USER.xp)} label="XP total" color={colors.accent} />
-          <StatTile value={String(MOCK_USER.completedQuizzes)} label="Quizzes concluídos" color={colors.textPrimary} />
+          <StatTile value={formatNumber(profile.xp)} label="XP total" color={colors.accent} />
+          <StatTile value={String(profile.completedQuizzes)} label="Quizzes concluídos" color={colors.textPrimary} />
           <StatTile value={`${hitRate}%`} label="Taxa de acertos" color={colors.difficultyEasy} />
         </View>
 

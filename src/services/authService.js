@@ -1,42 +1,95 @@
-// Authentication service layer.
-//
-// The backend is not available yet, so the email flows below only simulate a
-// network round trip. Replace the bodies with real requests when the API is
-// ready, e.g.:
-//   const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/login`, { ... });
-// The hooks in src/hooks only depend on the signatures (and thrown errors) here.
+import { apiPost } from './apiClient';
+import { clearAccessToken, saveAccessToken } from './authStorage';
 
-const MOCK_DELAY_MS = 900;
+const MAX_USERNAME_ATTEMPTS = 3;
 
-const PROVIDER_LABELS = {
-  google: 'Google',
-};
-
-function wait(milliseconds = MOCK_DELAY_MS) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+function makeRandomUsername() {
+  // A username is a public identifier, never a credential. A long random suffix
+  // makes collisions unlikely; a confirmed username collision is retried below.
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(16);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    // React Native runtimes without Web Crypto still work without extra packages.
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return `jogador${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')}`;
 }
 
-/** @param {{ email: string, password: string }} credentials */
+function formatDateForApi(birthDate) {
+  if (!birthDate) return undefined;
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(birthDate);
+  if (!match) throw new Error('Informe uma data de nascimento válida.');
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function isUsernameCollision(error) {
+  if (error?.status !== 409) return false;
+  const message = String(error?.data?.message ?? error?.message ?? '');
+  return /(nome de usu[aá]rio|username).*(uso|exist|cadastrad|taken|used)/i.test(message);
+}
+
+function requireAuthResponse(response) {
+  const token = response?.accessToken;
+  if (typeof token !== 'string' || !token.trim()) {
+    throw new Error('O servidor não retornou um token válido. Tente novamente.');
+  }
+  if (!response.user || response.user.id == null) {
+    throw new Error('O servidor não retornou os dados da conta. Tente novamente.');
+  }
+  return { token, user: response.user };
+}
+
+async function persistSession(response) {
+  const session = requireAuthResponse(response);
+  await saveAccessToken(session.token);
+  return session;
+}
+
 export async function login(credentials) {
-  await wait();
-  return { email: credentials.email };
+  const response = await apiPost('auth/login', {
+    email: credentials.email.trim(),
+    password: credentials.password,
+  }, { skipAuth: true });
+  return persistSession(response);
 }
 
-/** @param {{ birthDate: string, email: string, password: string }} data */
-export async function register(data) {
-  await wait();
-  return { email: data.email };
+/**
+ * Registration retains the Figma form (DD/MM/YYYY, e-mail and password).
+ * The backend additionally requires a random username, generated here.
+ */
+export async function register({ birthDate, email, password }) {
+  const payload = {
+    email: email.trim(),
+    password,
+    dateOfBirth: formatDateForApi(birthDate),
+  };
+
+  for (let attempt = 0; attempt < MAX_USERNAME_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await apiPost('auth/register', {
+        ...payload,
+        username: makeRandomUsername(),
+      }, { skipAuth: true });
+      return persistSession(response);
+    } catch (error) {
+      // Only retry if the API explicitly reports an occupied username.
+      // Retrying other 409s (e.g. an existing e-mail) would be misleading.
+      if (!isUsernameCollision(error) || attempt === MAX_USERNAME_ATTEMPTS - 1) throw error;
+    }
+  }
+  throw new Error('Não foi possível criar um nome de usuário. Tente novamente.');
 }
 
-/** @param {{ email: string }} data */
-export async function sendPasswordResetLink(data) {
-  await wait();
-  return { email: data.email };
+export async function logout() {
+  await clearAccessToken();
 }
 
-/** @param {'google'} provider */
+export async function sendPasswordResetLink() {
+  throw new Error('A recuperação de senha ainda não está disponível na API.');
+}
+
 export async function signInWithProvider(provider) {
-  // Real social sign-in needs provider credentials (Google / Apple console).
-  // Failing loudly is better than pretending the user was authenticated.
-  throw new Error(`Sign in with ${PROVIDER_LABELS[provider] ?? provider} is not configured yet.`);
+  throw new Error(`O login com ${provider} ainda não está configurado.`);
 }

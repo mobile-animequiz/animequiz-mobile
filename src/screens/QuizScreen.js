@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import ScreenContainer from '../components/ScreenContainer';
 import { colors, metrics, textStyles } from '../styles/theme';
-import { getQuizById } from '../services/quizService';
+import { getQuizById, getQuizQuestions } from '../services/quizService';
+import { submitQuizAttempt } from '../services/attemptService';
 
 // ---------------------------------------------------------------------------
-// Mock data (no API yet). `correctIndex` is the position of the right option.
+// Question data is loaded from the API; answer correctness stays on the server.
 // ---------------------------------------------------------------------------
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-// Feedback colors reuse the theme's functional colors (green = easy, red = error).
+// Theme colors are retained for the existing selection and feedback styles.
 // An 8-digit hex is "color + alpha": 24 = 14% (fill), 66 = 40% (border).
 const CORRECT_COLOR = colors.difficultyEasy;
 const INCORRECT_COLOR = colors.error;
@@ -25,21 +26,51 @@ export default function QuizScreen() {
   const router = useRouter();
   const { quizId } = useLocalSearchParams();
   const scrollRef = useRef(null);
+  const submittingRef = useRef(false);
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [correctCount, setCorrectCount] = useState(0);
   const [submittedAnswers, setSubmittedAnswers] = useState([]);
+  const [quiz, setQuiz] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState(true);
+  const [quizError, setQuizError] = useState(null);
+  const [isSubmittingAttempt, setIsSubmittingAttempt] = useState(false);
 
-  const requestedQuiz = getQuizById(Array.isArray(quizId) ? quizId[0] : quizId || 'quiz-01');
-  const isUnavailable = !requestedQuiz || requestedQuiz.questions.length === 0;
-  const quiz = isUnavailable ? getQuizById('quiz-01') : requestedQuiz;
-  const total = quiz.questions.length;
-  const question = quiz.questions[questionIndex];
+  const requestedQuizId = Array.isArray(quizId) ? quizId[0] : quizId;
+  useEffect(() => {
+    let isActive = true;
+    async function loadQuiz() {
+      setIsLoadingQuiz(true);
+      setQuizError(null);
+      try {
+        if (!requestedQuizId) throw new Error('Identificador do quiz não informado.');
+        const [quizResource, questionResources] = await Promise.all([
+          getQuizById(requestedQuizId),
+          getQuizQuestions(requestedQuizId),
+        ]);
+        if (!quizResource) throw new Error('Este quiz não foi encontrado.');
+        if (!questionResources.length) throw new Error('Este quiz ainda não possui perguntas disponíveis.');
+        if (isActive) {
+          setQuiz(quizResource);
+          setQuestions(questionResources);
+        }
+      } catch (error) {
+        if (isActive) setQuizError(error.message || 'Não foi possível carregar o quiz.');
+      } finally {
+        if (isActive) setIsLoadingQuiz(false);
+      }
+    }
+    loadQuiz();
+    return () => { isActive = false; };
+  }, [requestedQuizId]);
+
+  const isUnavailable = !isLoadingQuiz && (!quiz || questions.length === 0);
+  const total = questions.length;
+  const question = questions[questionIndex];
   const isLastQuestion = questionIndex === total - 1;
-  const isCorrect = isConfirmed && selectedIndex === question.correctIndex;
-  const progressPercent = ((questionIndex + 1) / total) * 100;
+  const progressPercent = total > 0 ? ((questionIndex + 1) / total) * 100 : 0;
 
   const leaveQuiz = useCallback(() => {
     if (router.canGoBack()) {
@@ -72,30 +103,34 @@ export default function QuizScreen() {
   }
 
   function handleConfirm() {
-    if (selectedIndex === null || isConfirmed) {
-      return;
-    }
+    if (selectedIndex === null || isConfirmed) return;
     setIsConfirmed(true);
     setSubmittedAnswers((answers) => [...answers, {
-      id: question.id,
-      question: question.text,
-      selectedAnswer: question.options[selectedIndex],
-      correctAnswer: question.options[question.correctIndex],
+      questionId: question.id,
+      optionId: question.options[selectedIndex].id,
     }]);
-    if (selectedIndex === question.correctIndex) {
-      setCorrectCount((count) => count + 1);
-    }
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (isLastQuestion) {
-      const result = {
-        quizId: quiz.id,
-        quizTitle: quiz.title,
-        category: quiz.category,
-        answers: submittedAnswers,
-      };
-      router.replace({ pathname: '/result', params: { result: JSON.stringify(result) } });
+      if (submittingRef.current || !submittedAnswers.length) return;
+      submittingRef.current = true;
+      setIsSubmittingAttempt(true);
+      try {
+        const officialResult = await submitQuizAttempt(quiz.id, submittedAnswers);
+        router.replace({
+          pathname: '/result',
+          params: { result: JSON.stringify(officialResult) },
+        });
+      } catch (error) {
+        Alert.alert(
+          'Não foi possível enviar o resultado',
+          `${error.message || 'Confira sua conexão e tente novamente.'} Se a conexão caiu após o envio, uma tentativa pode ter sido registrada.`,
+        );
+      } finally {
+        submittingRef.current = false;
+        setIsSubmittingAttempt(false);
+      }
       return;
     }
 
@@ -105,11 +140,20 @@ export default function QuizScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }
 
+  if (isLoadingQuiz) {
+    return (
+      <ScreenContainer>
+        <ActivityIndicator color={colors.accent} />
+        <Text style={textStyles.body}>Carregando quiz...</Text>
+      </ScreenContainer>
+    );
+  }
+
   if (isUnavailable) {
     return (
       <ScreenContainer>
         <Text style={textStyles.heading}>Quiz indisponível</Text>
-        <Text style={textStyles.body}>As perguntas deste quiz ainda não foram cadastradas.</Text>
+        <Text style={textStyles.body}>{quizError || 'As perguntas deste quiz ainda não estão disponíveis.'}</Text>
         <Pressable onPress={() => router.replace('/home')} accessibilityRole="button" accessibilityLabel="Voltar para a Home">
           <Text style={textStyles.body}>Voltar para a Home</Text>
         </Pressable>
@@ -117,7 +161,9 @@ export default function QuizScreen() {
     );
   }
 
-  const actionLabel = !isConfirmed
+  const actionLabel = isSubmittingAttempt
+    ? 'Enviando resultado...'
+    : !isConfirmed
     ? 'Confirmar resposta'
     : isLastQuestion
       ? 'Ver resultado'
@@ -146,7 +192,7 @@ export default function QuizScreen() {
                 Questão {questionIndex + 1} de {total}
               </Text>
               <Text style={textStyles.caption}>
-                {correctCount} {correctCount === 1 ? 'acerto' : 'acertos'}
+                {submittedAnswers.length} {submittedAnswers.length === 1 ? 'resposta' : 'respostas'}
               </Text>
             </View>
 
@@ -170,7 +216,7 @@ export default function QuizScreen() {
         >
           {/* Question */}
           <View style={styles.questionCard}>
-            <Text style={styles.questionTag}>{quiz.category}</Text>
+            <Text style={styles.questionTag}>{quiz.categoryLabel}</Text>
             <Text style={styles.questionText} accessibilityRole="header">
               {question.text}
             </Text>
@@ -178,41 +224,21 @@ export default function QuizScreen() {
 
           {/* Options */}
           <View style={styles.options} accessibilityRole="radiogroup">
-            {question.options.map((optionText, index) => (
+            {question.options.map((option, index) => (
               <OptionItem
                 key={`${question.id}-${index}`}
                 letter={OPTION_LETTERS[index]}
-                text={optionText}
-                state={getOptionState({
-                  index,
-                  selectedIndex,
-                  correctIndex: question.correctIndex,
-                  isConfirmed,
-                })}
+                text={option.text}
+                state={getOptionState({ index, selectedIndex, isConfirmed })}
                 disabled={isConfirmed}
                 onPress={() => handleSelectOption(index)}
               />
             ))}
           </View>
 
-          {/* Feedback after confirming */}
           {isConfirmed ? (
-            <View
-              style={[styles.feedback, isCorrect ? styles.feedbackCorrect : styles.feedbackIncorrect]}
-              accessibilityLiveRegion="polite"
-            >
-              <Text
-                style={[textStyles.heading, { color: isCorrect ? CORRECT_COLOR : INCORRECT_COLOR }]}
-              >
-                {isCorrect ? 'Resposta correta!' : 'Resposta incorreta'}
-              </Text>
-              {!isCorrect ? (
-                <Text style={styles.feedbackText}>
-                  A resposta certa é{' '}
-                  <Text style={styles.feedbackAnswer}>{question.options[question.correctIndex]}</Text>.
-                </Text>
-              ) : null}
-              <Text style={styles.feedbackText}>{question.explanation}</Text>
+            <View style={styles.feedback} accessibilityLiveRegion="polite">
+              <Text style={textStyles.body}>Resposta registrada. O resultado será calculado pelo servidor ao finalizar o quiz.</Text>
             </View>
           ) : null}
         </ScrollView>
@@ -221,7 +247,7 @@ export default function QuizScreen() {
         <View style={styles.footer}>
           <ActionButton
             label={actionLabel}
-            disabled={selectedIndex === null}
+            disabled={selectedIndex === null || isSubmittingAttempt}
             onPress={isConfirmed ? handleNext : handleConfirm}
           />
         </View>
@@ -231,17 +257,9 @@ export default function QuizScreen() {
 }
 
 // 'idle' | 'selected' (before confirming) | 'correct' | 'incorrect' | 'dimmed' (after confirming)
-function getOptionState({ index, selectedIndex, correctIndex, isConfirmed }) {
-  if (!isConfirmed) {
-    return index === selectedIndex ? 'selected' : 'idle';
-  }
-  if (index === correctIndex) {
-    return 'correct';
-  }
-  if (index === selectedIndex) {
-    return 'incorrect';
-  }
-  return 'dimmed';
+function getOptionState({ index, selectedIndex, isConfirmed }) {
+  if (isConfirmed) return 'dimmed';
+  return index === selectedIndex ? 'selected' : 'idle';
 }
 
 // ---------------------------------------------------------------------------

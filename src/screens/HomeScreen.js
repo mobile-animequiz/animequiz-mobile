@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import CategoryChips from '../components/CategoryChips';
@@ -8,14 +8,14 @@ import ScreenContainer from '../components/ScreenContainer';
 import SectionHeader from '../components/SectionHeader';
 import StatusCard from '../components/StatusCard';
 import useHomeData from '../hooks/useHomeData';
-import { metrics, textStyles } from '../styles/theme';
+import { colors, metrics, textStyles } from '../styles/theme';
 
 // Home / dashboard: greeting, player status, category filter and quiz list.
 // Data comes from useHomeData (mock for now); the Figma file has no Home, so the layout is built
 // only from the shared tokens in src/styles.
 export default function HomeScreen() {
   const router = useRouter();
-  const { player, categories, selectedCategoryId, selectCategory, quizzes } = useHomeData();
+  const { player, categories, selectedCategoryId, selectCategory, quizzes, loadError, isLoadingQuizzes, refreshPlayer, refreshQuizzes } = useHomeData();
 
   function handlePlay(quiz) {
     router.push({ pathname: '/quiz', params: { quizId: quiz.id } });
@@ -25,6 +25,9 @@ export default function HomeScreen() {
     <View style={styles.header}>
       <View style={styles.padded}>
         <HomeHeader name={player.name} />
+        {loadError ? (
+          <Text onPress={() => { refreshPlayer(); refreshQuizzes(); }} style={styles.loadError}>Não foi possível carregar os dados. Toque para tentar novamente.</Text>
+        ) : null}
         <View style={styles.statusCard}>
           <StatusCard player={player} />
         </View>
@@ -59,7 +62,11 @@ export default function HomeScreen() {
         ItemSeparatorComponent={Separator}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <Text style={styles.empty}>Nenhum quiz nesta categoria ainda.</Text>
+          isLoadingQuizzes ? (
+            <ActivityIndicator color={colors.accent} style={styles.loading} />
+          ) : (
+            <Text style={styles.empty}>Nenhum quiz disponível nesta categoria.</Text>
+          )
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -97,6 +104,14 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: metrics.cardGap,
+  },
+  loadError: {
+    ...textStyles.caption,
+    color: colors.error,
+    marginTop: 6,
+  },
+  loading: {
+    paddingVertical: 32,
   },
   empty: {
     ...textStyles.body,
