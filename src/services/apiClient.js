@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from './apiConfig';
 import { getAccessToken } from './authStorage';
+import { getSelectedApiVersion } from './apiVersion';
 
 // Render may take longer to respond after an idle period (cold start).
 const DEFAULT_TIMEOUT_MS = 45000;
@@ -119,6 +120,7 @@ export async function apiRequest(path, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const headers = {
     Accept: 'application/json',
+    'X-API-Version': getSelectedApiVersion(),
     ...customHeaders,
   };
 

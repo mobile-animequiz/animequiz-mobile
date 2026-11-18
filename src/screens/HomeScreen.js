@@ -7,17 +7,20 @@ import QuizCard from '../components/QuizCard';
 import ScreenContainer from '../components/ScreenContainer';
 import SectionHeader from '../components/SectionHeader';
 import StatusCard from '../components/StatusCard';
+import ApiVersionSelector from '../components/ApiVersionSelector';
+import { useApiVersion } from '../contexts/ApiVersionContext';
 import useHomeData from '../hooks/useHomeData';
 import { colors, metrics, textStyles } from '../styles/theme';
 
 // Home / dashboard: greeting, player status, category filter and quiz list.
-// Data comes from useHomeData (mock for now); the Figma file has no Home, so the layout is built
-// only from the shared tokens in src/styles.
+// Catalog and player statistics come from the selected API version.
 export default function HomeScreen() {
   const router = useRouter();
+  const { isChecking } = useApiVersion();
   const { player, categories, selectedCategoryId, selectCategory, quizzes, loadError, isLoadingQuizzes, refreshPlayer, refreshQuizzes } = useHomeData();
 
   function handlePlay(quiz) {
+    if (isChecking) return;
     router.push({ pathname: '/quiz', params: { quizId: quiz.id } });
   }
 
@@ -31,6 +34,7 @@ export default function HomeScreen() {
         <View style={styles.statusCard}>
           <StatusCard player={player} />
         </View>
+        <ApiVersionSelector />
       </View>
 
       <View style={styles.section}>

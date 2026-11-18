@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useApiVersion } from '../contexts/ApiVersionContext';
 import { getLevelProgress } from '../utils/progress';
 import { ALL_CATEGORIES_ID } from '../utils/mockData';
 import { getQuizCatalog } from '../services/quizService';
@@ -31,6 +32,7 @@ function normalizePlayer(user, profileResource) {
 
 export default function useHomeData() {
   const { user, refreshCurrentUser } = useAuth();
+  const { version } = useApiVersion();
   const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES_ID);
   const [loadError, setLoadError] = useState(null);
   const [profileResource, setProfileResource] = useState(null);
@@ -71,7 +73,7 @@ export default function useHomeData() {
   useEffect(() => {
     refreshQuizzes();
     refreshPlayer();
-  }, [refreshQuizzes, refreshPlayer]);
+  }, [refreshQuizzes, refreshPlayer, version]);
 
   const categories = useMemo(() => {
     const unique = new Map();

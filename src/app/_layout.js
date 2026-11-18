@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors } from '../styles/theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ApiVersionProvider } from '../contexts/ApiVersionContext';
 
 function AppStack() {
   const { isReady, isAuthenticated } = useAuth();
@@ -37,8 +38,10 @@ function AppStack() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <AppStack />
-    </AuthProvider>
+    <ApiVersionProvider>
+      <AuthProvider>
+        <AppStack />
+      </AuthProvider>
+    </ApiVersionProvider>
   );
 }
