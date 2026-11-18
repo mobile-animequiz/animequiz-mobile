@@ -101,6 +101,10 @@ export function normalizeQuestion(resource) {
     id: String(id),
     text: String(firstValue(resource, ['text', 'statement', 'content', 'question'], '')),
     options,
+    imageUrl: typeof resource.imageUrl === 'string' && /^https:\/\//i.test(resource.imageUrl) ? resource.imageUrl : null,
+    imageAltText: typeof resource.imageAltText === 'string' ? resource.imageAltText : 'Imagem ilustrativa do anime',
+    timeLimitSeconds: Number.isInteger(resource.timeLimitSeconds) && resource.timeLimitSeconds >= 5
+      && resource.timeLimitSeconds <= 300 ? resource.timeLimitSeconds : 30,
   };
 }
 

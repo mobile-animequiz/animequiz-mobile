@@ -1,4 +1,5 @@
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import CategoryChips from '../components/CategoryChips';
@@ -17,11 +18,12 @@ import { colors, metrics, textStyles } from '../styles/theme';
 export default function HomeScreen() {
   const router = useRouter();
   const { isChecking } = useApiVersion();
+  const [timed, setTimed] = useState(false);
   const { player, categories, selectedCategoryId, selectCategory, quizzes, loadError, isLoadingQuizzes, refreshPlayer, refreshQuizzes } = useHomeData();
 
   function handlePlay(quiz) {
     if (isChecking) return;
-    router.push({ pathname: '/quiz', params: { quizId: quiz.id } });
+    router.push({ pathname: '/quiz', params: { quizId: quiz.id, timed: String(timed) } });
   }
 
   const header = (
@@ -35,6 +37,10 @@ export default function HomeScreen() {
           <StatusCard player={player} />
         </View>
         <ApiVersionSelector />
+        <View style={styles.challenge}>
+          <View style={{ flex: 1, gap: 4 }}><Text style={textStyles.body}>Desafio com tempo</Text><Text style={styles.challengeHint}>Ao zerar, a pergunta fica sem resposta.</Text></View>
+          <Switch value={timed} onValueChange={setTimed} accessibilityLabel="Ativar desafio com tempo" />
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -84,6 +90,8 @@ function Separator() {
 }
 
 const styles = StyleSheet.create({
+  challenge: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 },
+  challengeHint: { ...textStyles.caption, fontSize: 14 },
   listContent: {
     paddingTop: metrics.homeHeaderTop,
     paddingBottom: 32,

@@ -9,7 +9,7 @@ function toBackendId(value) {
 }
 
 /** Sends only the player's choices. Scoring and correctness belong to the API. */
-export async function submitQuizAttempt(quizId, answers) {
+export async function submitQuizAttempt(quizId, answers, idempotencyKey) {
   const id = toBackendId(quizId);
   if (!Array.isArray(answers) || answers.length === 0) {
     throw new Error('Responda ao menos uma questão antes de finalizar.');
@@ -20,12 +20,15 @@ export async function submitQuizAttempt(quizId, answers) {
       optionId: toBackendId(answer.optionId),
     })),
   };
-  const result = await apiPost(`quizzes/${id}/attempts`, request);
+  const result = await apiPost(`quizzes/${id}/attempts`, request, {
+    headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {},
+  });
   if (
     !result || result.quizId !== id
     || !Number.isInteger(result.points)
     || !Number.isInteger(result.correctAnswers)
     || !Number.isInteger(result.totalQuestions)
+    || !Number.isInteger(result.answeredQuestions)
   ) {
     throw new Error('A API não retornou um resultado oficial válido.');
   }

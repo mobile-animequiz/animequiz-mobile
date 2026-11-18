@@ -56,6 +56,7 @@ export default function ResultScreen() {
           </Text>
           {result ? (
             <>
+              <View style={styles.medal}><Text style={styles.medalLabel}>{Math.round((result.correctAnswers / Math.max(1, result.totalQuestions)) * 100)}%</Text></View>
               <Text style={textStyles.caption}>{result.quizTitle}</Text>
               <Text style={textStyles.body}>
                 {result.correctAnswers} de {result.totalQuestions} questões corretas
@@ -63,6 +64,7 @@ export default function ResultScreen() {
               <Text style={textStyles.caption}>
                 {result.answeredQuestions} {result.answeredQuestions === 1 ? 'questão respondida' : 'questões respondidas'}
               </Text>
+              <Text style={styles.verified}>Pontuação calculada e registrada pela API</Text>
             </>
           ) : (
             <Text style={textStyles.body}>
@@ -71,6 +73,8 @@ export default function ResultScreen() {
           )}
         </View>
         <View style={styles.footer}>
+          {result?.quizId ? <Pressable onPress={() => router.replace({ pathname: '/quiz', params: { quizId: String(result.quizId) } })}
+            accessibilityRole="button" style={styles.again}><Text style={styles.buttonLabel}>Jogar novamente</Text></Pressable> : null}
           <Pressable
             onPress={goHome}
             style={({ pressed }) => [styles.button, pressed && styles.pressed]}
@@ -86,6 +90,10 @@ export default function ResultScreen() {
 }
 
 const styles = StyleSheet.create({
+  medal: { width: 116, height: 116, borderRadius: 58, borderWidth: 6, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  medalLabel: { color: '#fff', fontSize: 30, fontWeight: '900' },
+  verified: { fontSize: 14, color: colors.difficultyEasy, textAlign: 'center' },
+  again: { minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: colors.accent, marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
   content: {
     flex: 1,
     justifyContent: 'center',

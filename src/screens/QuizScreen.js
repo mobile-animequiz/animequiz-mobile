@@ -1,595 +1,228 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
+import QuestionImage from '../components/QuestionImage';
 import ScreenContainer from '../components/ScreenContainer';
+import { useApiVersion } from '../contexts/ApiVersionContext';
 import { colors, metrics, textStyles } from '../styles/theme';
 import { getQuizById, getQuizQuestions } from '../services/quizService';
 import { submitQuizAttempt } from '../services/attemptService';
+import { remainingSeconds, createAttemptKey } from '../utils/quizRound';
 
-// ---------------------------------------------------------------------------
-// Question data is loaded from the API; answer correctness stays on the server.
-// ---------------------------------------------------------------------------
-const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const TILES = [
+  { color: '#A9344D', shape: '▲' }, { color: '#2051A1', shape: '◆' },
+  { color: '#765B07', shape: '●' }, { color: '#1D725D', shape: '■' },
+];
 
-// Theme colors are retained for the existing selection and feedback styles.
-// An 8-digit hex is "color + alpha": 24 = 14% (fill), 66 = 40% (border).
-const CORRECT_COLOR = colors.difficultyEasy;
-const INCORRECT_COLOR = colors.error;
-const FILL_ALPHA = '24';
-const BORDER_ALPHA = '66';
-
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
 export default function QuizScreen() {
   const router = useRouter();
-  const { quizId } = useLocalSearchParams();
+  const { quizId, timed } = useLocalSearchParams();
+  const { version } = useApiVersion();
+  const requestedQuizId = Array.isArray(quizId) ? quizId[0] : quizId;
+  const isTimed = timed === 'true';
   const scrollRef = useRef(null);
   const submittingRef = useRef(false);
-
+  const lockedRef = useRef(false);
+  const advancingRef = useRef(false);
+  const deadlineRef = useRef(0);
+  const attemptKeyRef = useRef(null);
+  if (!attemptKeyRef.current) attemptKeyRef.current = createAttemptKey();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(30);
   const [submittedAnswers, setSubmittedAnswers] = useState([]);
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(true);
   const [quizError, setQuizError] = useState(null);
   const [isSubmittingAttempt, setIsSubmittingAttempt] = useState(false);
+  const [retryLoad, setRetryLoad] = useState(0);
 
-  const requestedQuizId = Array.isArray(quizId) ? quizId[0] : quizId;
   useEffect(() => {
-    let isActive = true;
-    async function loadQuiz() {
-      setIsLoadingQuiz(true);
-      setQuizError(null);
-      try {
-        if (!requestedQuizId) throw new Error('Identificador do quiz não informado.');
-        const [quizResource, questionResources] = await Promise.all([
-          getQuizById(requestedQuizId),
-          getQuizQuestions(requestedQuizId),
-        ]);
-        if (!quizResource) throw new Error('Este quiz não foi encontrado.');
-        if (!questionResources.length) throw new Error('Este quiz ainda não possui perguntas disponíveis.');
-        if (isActive) {
-          setQuiz(quizResource);
-          setQuestions(questionResources);
-        }
-      } catch (error) {
-        if (isActive) setQuizError(error.message || 'Não foi possível carregar o quiz.');
-      } finally {
-        if (isActive) setIsLoadingQuiz(false);
-      }
-    }
-    loadQuiz();
-    return () => { isActive = false; };
-  }, [requestedQuizId]);
+    let active = true;
+    setIsLoadingQuiz(true);
+    setQuizError(null);
+    Promise.all([getQuizById(requestedQuizId), getQuizQuestions(requestedQuizId)])
+      .then(([resource, items]) => {
+        if (!resource || !items.length) throw new Error('Este quiz ainda não possui perguntas disponíveis.');
+        if (active) { setQuiz(resource); setQuestions(items); }
+      })
+      .catch((error) => { if (active) setQuizError(error.message || 'Não foi possível carregar o quiz.'); })
+      .finally(() => { if (active) setIsLoadingQuiz(false); });
+    return () => { active = false; };
+  }, [requestedQuizId, retryLoad]);
 
-  const isUnavailable = !isLoadingQuiz && (!quiz || questions.length === 0);
-  const total = questions.length;
   const question = questions[questionIndex];
-  const isLastQuestion = questionIndex === total - 1;
-  const progressPercent = total > 0 ? ((questionIndex + 1) / total) * 100 : 0;
+  const total = questions.length;
+  const lastQuestion = questionIndex === total - 1;
+  useEffect(() => { advancingRef.current = false; }, [question?.id]);
+  const endQuestionTime = useCallback(() => {
+    if (lockedRef.current) return;
+    lockedRef.current = true;
+    setSecondsLeft(0); setSelectedIndex(null); setTimedOut(true); setIsConfirmed(true);
+  }, []);
 
-  const leaveQuiz = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/home');
-    }
-  }, [router]);
+  useEffect(() => {
+    if (!question || !isTimed || isConfirmed || isLoadingQuiz) return undefined;
+    deadlineRef.current = Date.now() + question.timeLimitSeconds * 1000;
+    const tick = () => {
+      const remaining = remainingSeconds(deadlineRef.current, Date.now());
+      setSecondsLeft(remaining);
+      if (remaining === 0) endQuestionTime();
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') tick(); });
+    return () => { clearInterval(interval); subscription.remove(); };
+  }, [question, isTimed, isConfirmed, isLoadingQuiz, endQuestionTime]);
 
   const confirmExit = useCallback(() => {
-    Alert.alert('Sair do quiz?', 'Seu progresso nesta partida será perdido.', [
+    if (submittingRef.current) return;
+    Alert.alert('Sair do quiz?', 'O progresso desta partida será perdido.', [
       { text: 'Continuar jogando', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: leaveQuiz },
+      { text: 'Sair', style: 'destructive', onPress: () => router.replace('/home') },
     ]);
-  }, [leaveQuiz]);
+  }, [router]);
 
-  // Android back button asks for confirmation too (iOS swipe-back is disabled below).
   useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      confirmExit();
-      return true;
-    });
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { confirmExit(); return true; });
     return () => subscription.remove();
   }, [confirmExit]);
 
-  function handleSelectOption(index) {
-    if (!isConfirmed) {
-      setSelectedIndex(index);
-    }
+  function handleConfirm() {
+    if (lockedRef.current || selectedIndex === null) return;
+    if (isTimed && Date.now() >= deadlineRef.current) { endQuestionTime(); return; }
+    lockedRef.current = true;
+    setSubmittedAnswers((answers) => [...answers, { questionId: question.id, optionId: question.options[selectedIndex].id }]);
+    setIsConfirmed(true);
   }
 
-  function handleConfirm() {
-    if (selectedIndex === null || isConfirmed) return;
-    setIsConfirmed(true);
-    setSubmittedAnswers((answers) => [...answers, {
-      questionId: question.id,
-      optionId: question.options[selectedIndex].id,
-    }]);
+  function restart() {
+    lockedRef.current = false;
+    advancingRef.current = false;
+    attemptKeyRef.current = createAttemptKey();
+    setQuestionIndex(0); setSelectedIndex(null); setIsConfirmed(false); setTimedOut(false); setSubmittedAnswers([]);
   }
 
   async function handleNext() {
-    if (isLastQuestion) {
-      if (submittingRef.current || !submittedAnswers.length) return;
-      submittingRef.current = true;
-      setIsSubmittingAttempt(true);
-      try {
-        const officialResult = await submitQuizAttempt(quiz.id, submittedAnswers);
-        router.replace({
-          pathname: '/result',
-          params: { result: JSON.stringify(officialResult) },
-        });
-      } catch (error) {
-        Alert.alert(
-          'Não foi possível enviar o resultado',
-          `${error.message || 'Confira sua conexão e tente novamente.'} Se a conexão caiu após o envio, uma tentativa pode ter sido registrada.`,
-        );
-      } finally {
-        submittingRef.current = false;
-        setIsSubmittingAttempt(false);
-      }
+    if (!isConfirmed || submittingRef.current || advancingRef.current) return;
+    if (!lastQuestion) {
+      advancingRef.current = true;
+      lockedRef.current = false;
+      setQuestionIndex((index) => index + 1);
+      setSelectedIndex(null); setIsConfirmed(false); setTimedOut(false);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
       return;
     }
-
-    setQuestionIndex((index) => index + 1);
-    setSelectedIndex(null);
-    setIsConfirmed(false);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    if (!submittedAnswers.length) {
+      Alert.alert('Nenhuma resposta enviada', 'O tempo acabou em todas as perguntas. Esta partida não gerou pontuação no servidor.', [
+        { text: 'Voltar ao início', onPress: () => router.replace('/home') }, { text: 'Recomeçar', onPress: restart },
+      ]);
+      return;
+    }
+    submittingRef.current = true;
+    setIsSubmittingAttempt(true);
+    try {
+      const result = await submitQuizAttempt(quiz.id, submittedAnswers, attemptKeyRef.current);
+      router.replace({ pathname: '/result', params: { result: JSON.stringify(result) } });
+    } catch (error) {
+      Alert.alert('Não foi possível enviar', `${error.message} Tente novamente: a mesma chave evita duplicar esta tentativa.`);
+    } finally {
+      submittingRef.current = false; setIsSubmittingAttempt(false);
+    }
   }
 
-  if (isLoadingQuiz) {
-    return (
-      <ScreenContainer>
-        <ActivityIndicator color={colors.accent} />
-        <Text style={textStyles.body}>Carregando quiz...</Text>
-      </ScreenContainer>
-    );
-  }
+  if (isLoadingQuiz) return <ScreenContainer><View style={styles.center}><ActivityIndicator color={colors.accent} /><Text style={textStyles.body}>Preparando a partida…</Text></View></ScreenContainer>;
+  if (quizError || !quiz || !question) return <ScreenContainer><View style={styles.center}>
+    <Text style={textStyles.title}>Quiz indisponível</Text><Text style={textStyles.body}>{quizError || 'Não há perguntas disponíveis.'}</Text>
+    <ActionButton label="Tentar novamente" onPress={() => setRetryLoad((value) => value + 1)} />
+    <ActionButton label="Voltar ao início" onPress={() => router.replace('/home')} />
+  </View></ScreenContainer>;
 
-  if (isUnavailable) {
-    return (
-      <ScreenContainer>
-        <Text style={textStyles.heading}>Quiz indisponível</Text>
-        <Text style={textStyles.body}>{quizError || 'As perguntas deste quiz ainda não estão disponíveis.'}</Text>
-        <Pressable onPress={() => router.replace('/home')} accessibilityRole="button" accessibilityLabel="Voltar para a Home">
-          <Text style={textStyles.body}>Voltar para a Home</Text>
-        </Pressable>
-      </ScreenContainer>
-    );
-  }
-
-  const actionLabel = isSubmittingAttempt
-    ? 'Enviando resultado...'
-    : !isConfirmed
-    ? 'Confirmar resposta'
-    : isLastQuestion
-      ? 'Ver resultado'
-      : 'Próxima pergunta';
-
-  return (
-    <>
-      <Stack.Screen options={{ gestureEnabled: false }} />
-
-      <ScreenContainer scrollable={false} padded={false}>
-        {/* Header: close button + progress */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={confirmExit}
-            hitSlop={8}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Fechar quiz"
-          >
-            <CloseIcon />
-          </Pressable>
-
-          <View style={styles.progressBlock}>
-            <View style={styles.progressRow}>
-              <Text style={textStyles.heading}>
-                Questão {questionIndex + 1} de {total}
-              </Text>
-              <Text style={textStyles.caption}>
-                {submittedAnswers.length} {submittedAnswers.length === 1 ? 'resposta' : 'respostas'}
-              </Text>
-            </View>
-
-            <View
-              style={styles.track}
-              accessible
-              accessibilityRole="progressbar"
-              accessibilityLabel="Progresso do quiz"
-              accessibilityValue={{ min: 0, max: total, now: questionIndex + 1 }}
-            >
-              <View style={[styles.fill, { width: `${progressPercent}%` }]} />
-            </View>
-          </View>
-        </View>
-
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Question */}
-          <View style={styles.questionCard}>
-            <Text style={styles.questionTag}>{quiz.categoryLabel}</Text>
-            <Text style={styles.questionText} accessibilityRole="header">
-              {question.text}
-            </Text>
-          </View>
-
-          {/* Options */}
-          <View style={styles.options} accessibilityRole="radiogroup">
-            {question.options.map((option, index) => (
-              <OptionItem
-                key={`${question.id}-${index}`}
-                letter={OPTION_LETTERS[index]}
-                text={option.text}
-                state={getOptionState({ index, selectedIndex, isConfirmed })}
-                disabled={isConfirmed}
-                onPress={() => handleSelectOption(index)}
-              />
-            ))}
-          </View>
-
-          {isConfirmed ? (
-            <View style={styles.feedback} accessibilityLiveRegion="polite">
-              <Text style={textStyles.body}>Resposta registrada. O resultado será calculado pelo servidor ao finalizar o quiz.</Text>
-            </View>
-          ) : null}
-        </ScrollView>
-
-        {/* Controls */}
-        <View style={styles.footer}>
-          <ActionButton
-            label={actionLabel}
-            disabled={selectedIndex === null || isSubmittingAttempt}
-            onPress={isConfirmed ? handleNext : handleConfirm}
-          />
-        </View>
-      </ScreenContainer>
-    </>
-  );
-}
-
-// 'idle' | 'selected' (before confirming) | 'correct' | 'incorrect' | 'dimmed' (after confirming)
-function getOptionState({ index, selectedIndex, isConfirmed }) {
-  if (isConfirmed) return 'dimmed';
-  return index === selectedIndex ? 'selected' : 'idle';
-}
-
-// ---------------------------------------------------------------------------
-// Local components
-// ---------------------------------------------------------------------------
-function OptionItem({ letter, text, state, disabled, onPress }) {
-  const isActive = state === 'selected' || state === 'correct' || state === 'incorrect';
-  const a11ySuffix =
-    state === 'correct' ? ', resposta correta' : state === 'incorrect' ? ', resposta incorreta' : '';
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.option,
-        state === 'selected' && styles.optionSelected,
-        state === 'correct' && styles.optionCorrect,
-        state === 'incorrect' && styles.optionIncorrect,
-        state === 'dimmed' && styles.optionDimmed,
-        pressed && !disabled && styles.pressed,
-      ]}
-      accessibilityRole="radio"
-      accessibilityLabel={`${letter}. ${text}${a11ySuffix}`}
-      accessibilityState={{ selected: state !== 'idle' && state !== 'dimmed', disabled }}
-    >
-      <View
-        style={[
-          styles.badge,
-          state === 'selected' && styles.badgeSelected,
-          state === 'correct' && styles.badgeCorrect,
-          state === 'incorrect' && styles.badgeIncorrect,
-        ]}
-      >
-        {state === 'correct' ? (
-          <StatusMark type="check" />
-        ) : state === 'incorrect' ? (
-          <StatusMark type="cross" />
-        ) : (
-          <Text style={[styles.badgeLetter, isActive && styles.badgeLetterActive]}>{letter}</Text>
-        )}
+  const label = isSubmittingAttempt ? 'Enviando resultado…' : !isConfirmed ? 'Confirmar resposta' : lastQuestion ? 'Ver resultado' : 'Próxima pergunta';
+  return <>
+    <Stack.Screen options={{ gestureEnabled: false }} />
+    <ScreenContainer scrollable={false} padded={false}>
+      <View style={styles.header}>
+        <Pressable onPress={confirmExit} disabled={isSubmittingAttempt} accessibilityRole="button" accessibilityLabel="Sair do quiz" style={styles.close}><Text style={styles.closeLabel}>×</Text></Pressable>
+        <View style={styles.heading}><Text style={styles.eyebrow}>API V{version} · {quiz.categoryLabel}</Text><Text style={styles.counter}>Pergunta {questionIndex + 1} de {total}</Text></View>
+        {isTimed ? <View style={[styles.timer, secondsLeft <= 5 && styles.timerWarning]} accessibilityLabel={`${secondsLeft} segundos restantes`}>
+          <Text style={styles.timerNumber}>{secondsLeft}</Text><Text style={styles.timerUnit}>seg</Text>
+        </View> : <Text style={styles.untimed}>Sem tempo</Text>}
       </View>
-
-      <Text style={styles.optionText}>{text}</Text>
-    </Pressable>
-  );
+      <View style={styles.track} accessibilityRole="progressbar" accessibilityLabel="Progresso da partida" accessibilityValue={{ min: 0, max: total, now: questionIndex + 1 }}>
+        <View style={[styles.fill, { width: `${((questionIndex + 1) / total) * 100}%` }]} />
+      </View>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <QuestionImage key={`${question.id}-${question.imageUrl}`} uri={question.imageUrl} description={question.imageAltText} />
+        <Text style={styles.question} accessibilityRole="header">{question.text}</Text>
+        <Text style={styles.hint}>{isConfirmed ? 'Sua escolha foi encerrada' : 'Escolha uma alternativa'}</Text>
+        <View style={styles.options} accessibilityRole="radiogroup">
+          {question.options.map((option, index) => {
+            const tile = TILES[index % TILES.length];
+            const selected = index === selectedIndex;
+            return <Pressable key={option.id} disabled={isConfirmed} onPress={() => { if (!lockedRef.current) setSelectedIndex(index); }}
+              accessibilityRole="radio" accessibilityLabel={`${String.fromCharCode(65 + index)}. ${option.text}`} accessibilityState={{ selected, disabled: isConfirmed }}
+              style={({ pressed }) => [styles.tile, { backgroundColor: tile.color }, selected && styles.selected, isConfirmed && !selected && styles.dimmed, pressed && styles.pressed]}>
+              <View style={styles.tileTop}><Text style={styles.shape}>{tile.shape}</Text><Text style={styles.letter}>{String.fromCharCode(65 + index)}</Text></View>
+              <Text style={styles.optionText}>{option.text}</Text>
+              {selected ? <Text style={styles.selection}>{isConfirmed ? 'Confirmada' : 'Selecionada'}</Text> : null}
+            </Pressable>;
+          })}
+        </View>
+        {isConfirmed ? <View style={styles.feedback} accessibilityLiveRegion="polite">
+          <Text style={styles.feedbackTitle}>{timedOut ? 'O tempo acabou' : 'Resposta confirmada'}</Text>
+          <Text style={styles.feedbackBody}>{timedOut ? 'Esta pergunta ficará sem resposta. Continue para a próxima etapa.' : 'Seu resultado será corrigido pela API ao terminar a partida.'}</Text>
+        </View> : null}
+      </ScrollView>
+      <View style={styles.footer}><Text style={styles.footerHint}>{submittedAnswers.length} de {total} respostas confirmadas</Text>
+        <ActionButton label={label} disabled={(!isConfirmed && selectedIndex === null) || isSubmittingAttempt} onPress={isConfirmed ? handleNext : handleConfirm} />
+      </View>
+    </ScreenContainer>
+  </>;
 }
 
-function ActionButton({ label, disabled, onPress }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.action,
-        disabled ? styles.actionDisabled : styles.actionEnabled,
-        pressed && !disabled && styles.pressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-    >
-      <Text style={[styles.actionLabel, disabled && styles.actionLabelDisabled]}>{label}</Text>
-    </Pressable>
-  );
+function ActionButton({ label, onPress, disabled = false }) {
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} style={({ pressed }) => [styles.action, disabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.actionLabel}>{label}</Text></Pressable>;
 }
 
-// Vector marks drawn with Views (no emoji, no icon font).
-function CloseIcon() {
-  return (
-    <View style={styles.closeIcon}>
-      <View style={[styles.closeBar, styles.rotatePositive]} />
-      <View style={[styles.closeBar, styles.rotateNegative]} />
-    </View>
-  );
-}
-
-function StatusMark({ type }) {
-  if (type === 'check') {
-    return <View style={styles.checkMark} />;
-  }
-
-  return (
-    <View style={styles.crossMark}>
-      <View style={[styles.crossBar, styles.rotatePositive]} />
-      <View style={[styles.crossBar, styles.rotateNegative]} />
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.85,
-  },
-  rotatePositive: {
-    transform: [{ rotate: '45deg' }],
-  },
-  rotateNegative: {
-    transform: [{ rotate: '-45deg' }],
-  },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: metrics.homePaddingX,
-    paddingTop: metrics.homeHeaderTop,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  closeIcon: {
-    width: 16,
-    height: 16,
-  },
-  closeBar: {
-    position: 'absolute',
-    top: 7,
-    left: 0,
-    width: 16,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.textPrimary,
-  },
-  progressBlock: {
-    flex: 1,
-    gap: 8,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  track: {
-    height: metrics.progressHeight,
-    borderRadius: metrics.progressHeight / 2,
-    overflow: 'hidden',
-    backgroundColor: colors.progressTrack,
-  },
-  fill: {
-    height: '100%',
-    borderRadius: metrics.progressHeight / 2,
-    backgroundColor: colors.accent,
-  },
-
-  // Content
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: metrics.homePaddingX,
-    paddingTop: metrics.homeSectionGap,
-    paddingBottom: metrics.cardPadding,
-  },
-
-  // Question
-  questionCard: {
-    minHeight: 148,
-    justifyContent: 'center',
-    padding: 20,
-    borderRadius: metrics.cardRadius,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  questionTag: {
-    ...textStyles.caption,
-    color: colors.accent,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  questionText: {
-    ...textStyles.title,
-    marginTop: 8,
-  },
-
-  // Options
-  options: {
-    marginTop: metrics.cardPadding,
-    gap: metrics.cardGap,
-  },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: metrics.cardGap,
-    minHeight: 56,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: metrics.fieldRadius,
-    borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  optionSelected: {
-    borderColor: colors.accent,
-    backgroundColor: `${colors.accent}29`,
-  },
-  optionCorrect: {
-    borderColor: CORRECT_COLOR,
-    backgroundColor: `${CORRECT_COLOR}${FILL_ALPHA}`,
-  },
-  optionIncorrect: {
-    borderColor: INCORRECT_COLOR,
-    backgroundColor: `${INCORRECT_COLOR}${FILL_ALPHA}`,
-  },
-  optionDimmed: {
-    opacity: 0.45,
-  },
-  optionText: {
-    ...textStyles.body,
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  badge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  badgeSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent,
-  },
-  badgeCorrect: {
-    borderColor: CORRECT_COLOR,
-    backgroundColor: CORRECT_COLOR,
-  },
-  badgeIncorrect: {
-    borderColor: INCORRECT_COLOR,
-    backgroundColor: INCORRECT_COLOR,
-  },
-  badgeLetter: {
-    ...textStyles.button,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  badgeLetterActive: {
-    color: colors.textPrimary,
-  },
-  checkMark: {
-    width: 6,
-    height: 11,
-    marginTop: -2,
-    borderRightWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: colors.textPrimary,
-    transform: [{ rotate: '45deg' }],
-  },
-  crossMark: {
-    width: 12,
-    height: 12,
-  },
-  crossBar: {
-    position: 'absolute',
-    top: 5,
-    left: 0,
-    width: 12,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.textPrimary,
-  },
-
-  // Feedback
-  feedback: {
-    marginTop: metrics.cardPadding,
-    padding: 14,
-    gap: 4,
-    borderRadius: metrics.fieldRadius,
-    borderWidth: 1,
-  },
-  feedbackCorrect: {
-    borderColor: `${CORRECT_COLOR}${BORDER_ALPHA}`,
-    backgroundColor: `${CORRECT_COLOR}${FILL_ALPHA}`,
-  },
-  feedbackIncorrect: {
-    borderColor: `${INCORRECT_COLOR}${BORDER_ALPHA}`,
-    backgroundColor: `${INCORRECT_COLOR}${FILL_ALPHA}`,
-  },
-  feedbackText: {
-    ...textStyles.body,
-    color: colors.textSecondary,
-  },
-  feedbackAnswer: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-  },
-
-  // Controls
-  footer: {
-    paddingHorizontal: metrics.homePaddingX,
-    paddingTop: metrics.cardGap,
-    paddingBottom: metrics.cardPadding,
-  },
-  action: {
-    height: metrics.buttonHeight,
-    borderRadius: metrics.buttonRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionEnabled: {
-    backgroundColor: colors.accent,
-  },
-  actionDisabled: {
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  actionLabel: {
-    ...textStyles.button,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  actionLabelDisabled: {
-    color: colors.textSecondary,
-  },
+  center: { flex: 1, justifyContent: 'center', gap: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: metrics.homePaddingX, paddingTop: 16, paddingBottom: 16 },
+  close: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.fieldFill, justifyContent: 'center', alignItems: 'center' },
+  closeLabel: { color: '#fff', fontSize: 30 },
+  heading: { flex: 1, gap: 5 },
+  eyebrow: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+  counter: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  timer: { minWidth: 52, minHeight: 52, borderRadius: 16, backgroundColor: '#334180', alignItems: 'center', justifyContent: 'center' },
+  timerWarning: { backgroundColor: '#A9344D' },
+  timerNumber: { color: '#fff', fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  timerUnit: { color: '#fff', fontSize: 12 },
+  untimed: { color: colors.textSecondary, fontSize: 14, maxWidth: 70 },
+  track: { height: 5, backgroundColor: colors.progressTrack, marginHorizontal: metrics.homePaddingX, borderRadius: 4, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: colors.accent },
+  content: { padding: metrics.homePaddingX, paddingBottom: 24 },
+  question: { color: '#fff', fontSize: 24, lineHeight: 32, fontWeight: '800' },
+  hint: { color: colors.textSecondary, fontSize: 14, marginTop: 10, marginBottom: 20 },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  tile: { flexBasis: '46%', flexGrow: 1, minHeight: 132, padding: 15, borderRadius: 18, borderWidth: 3, borderColor: 'transparent', gap: 12 },
+  tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  shape: { color: '#fff', fontSize: 22 },
+  letter: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  optionText: { color: '#fff', fontSize: 16, lineHeight: 23, fontWeight: '700' },
+  selected: { borderColor: '#fff' },
+  selection: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  dimmed: { opacity: 0.5 },
+  pressed: { opacity: 0.85 },
+  feedback: { marginTop: 22, padding: 16, backgroundColor: '#262D50', borderRadius: 16, gap: 6 },
+  feedbackTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  feedbackBody: { color: '#D9DEFA', fontSize: 15, lineHeight: 22 },
+  footer: { paddingHorizontal: metrics.homePaddingX, paddingBottom: 16, paddingTop: 8, gap: 10 },
+  footerHint: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
+  action: { width: '100%', minHeight: 54, padding: 14, borderRadius: 16, backgroundColor: '#566AC8', alignItems: 'center', justifyContent: 'center' },
+  disabled: { opacity: 0.45 },
+  actionLabel: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });
