@@ -23,7 +23,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "node --experimental-vm-modules --test tests/*.test.cjs"
+    "test": "node --experimental-vm-modules --test tests/*.test.cjs",
+    "build:apk": "npx eas-cli@latest build --platform android --profile preview"
   },
   "private": true,
   "devDependencies": {
