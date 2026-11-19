@@ -12,16 +12,12 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_VERSION": "2"
       }
     },
     "current": {
       "extends": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://animequiz-api-wst8.onrender.com",
-        "EXPO_PUBLIC_API_VERSION": "1"
+        "EXPO_PUBLIC_API_URL": "https://animequiz-api-wst8.onrender.com"
       }
     },
     "production": {

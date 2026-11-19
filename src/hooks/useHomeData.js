@@ -3,7 +3,6 @@ import { useCallback, useMemo, useState } from 'react';
 
 import useRemoteResource from './useRemoteResource';
 import { useAuth } from '../contexts/AuthContext';
-import { useApiVersion } from '../contexts/ApiVersionContext';
 import { getLevelProgress } from '../utils/progress';
 import { ALL_CATEGORIES_ID } from '../utils/mockData';
 import { getQuizCatalog } from '../services/quizService';
@@ -34,12 +33,12 @@ function normalizePlayer(user, profileResource) {
 
 export default function useHomeData() {
   const { user } = useAuth();
-  const { version } = useApiVersion();
+
   const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES_ID);
   const loadCatalog = useCallback(() => getQuizCatalog(), []);
   const userId = user?.id;
   const loadProfile = useCallback(() => userId ? getProfileByUserId(userId) : Promise.resolve(null), [userId]);
-  const catalog = useRemoteResource('catalog:' + version, loadCatalog);
+  const catalog = useRemoteResource('catalog', loadCatalog);
   const playerData = useRemoteResource('player:' + user?.id, loadProfile);
   const quizzes = useMemo(() => catalog.data ?? [], [catalog.data]);
   const categories = useMemo(() => {

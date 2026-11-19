@@ -3,7 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors } from '../styles/theme';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { ApiVersionProvider } from '../contexts/ApiVersionContext';
 import { AccountProvider } from '../contexts/AccountContext';
 import useReducedMotion from '../hooks/useReducedMotion';
 
@@ -42,12 +41,10 @@ function AppStack() {
 
 export default function RootLayout() {
   return (
-    <ApiVersionProvider>
-      <AuthProvider>
-        <AccountProvider>
+    <AuthProvider>
+      <AccountProvider>
         <AppStack />
-        </AccountProvider>
-      </AuthProvider>
-    </ApiVersionProvider>
+      </AccountProvider>
+    </AuthProvider>
   );
 }
