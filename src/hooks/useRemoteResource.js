@@ -1,14 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 export default function useRemoteResource(key, load) {
   const [generation, setGeneration] = useState(0);
   const [resource, setResource] = useState(null);
   const requestKey = String(key) + ':' + generation;
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let active = true;
     load().then((data) => { if (active) setResource({ key: requestKey, data, error: null }); })
       .catch((error) => { if (active) setResource({ key: requestKey, data: null, error: error.message }); });
     return () => { active = false; };
-  }, [requestKey, load]);
+  }, [requestKey, load]));
   const refresh = useCallback(() => setGeneration((value) => value + 1), []);
   const current = resource?.key === requestKey ? resource : null;
   return { data: current?.data ?? null, error: current?.error ?? null, loading: !current, refresh };

@@ -93,6 +93,7 @@ export function AuthProvider({ children }) {
   }, [invalidateSession]);
 
   const activateSession = useCallback(async (session) => {
+    setSessionError(null);
     activeTokenRef.current = session.token;
     setToken(session.token);
     setUser(session.user);

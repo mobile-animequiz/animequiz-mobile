@@ -52,7 +52,9 @@ const styles = StyleSheet.create({
   pill: {
     alignSelf: 'center',
     minWidth: metrics.pillMinWidth,
-    height: metrics.pillHeight,
+    minHeight: metrics.pillHeight,
+    maxWidth: '100%',
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -74,6 +76,8 @@ const styles = StyleSheet.create({
   },
   label: {
     ...textStyles.button,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   labelDark: {
     color: colors.textOnLight,

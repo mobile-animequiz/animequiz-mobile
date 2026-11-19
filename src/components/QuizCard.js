@@ -16,7 +16,7 @@ export default function QuizCard({ quiz, onPlay }) {
       <Text style={textStyles.heading}>{quiz.title}</Text>
       <Text style={textStyles.caption}>{t('questionCount', { count: quiz.questionCount })} · {t(difficulty)}</Text>
       <Pressable onPress={toggle} disabled={busy || loading || Boolean(error)} accessibilityRole="button"
-        accessibilityLabel={t(favorite ? t("unfavorite") : t("favorite"), { title: quiz.title })} accessibilityState={{ selected: favorite, busy }}
+        accessibilityLabel={t(favorite ? 'unfavorite' : 'favorite', { title: quiz.title })} accessibilityState={{ selected: favorite, busy, disabled: busy || loading || Boolean(error) }}
         style={styles.favorite}>
         {busy ? <ActivityIndicator color={colors.accent} /> : <Text style={[textStyles.body, { color: colors.accent }]}>{favorite ? '♥ ' : '♡ '}{t(favorite ? 'saved' : 'save')}</Text>}
       </Pressable>

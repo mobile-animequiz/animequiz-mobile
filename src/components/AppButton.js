@@ -33,7 +33,9 @@ export default function AppButton({ title, onPress, isLoading = false, disabled 
 
 const styles = StyleSheet.create({
   button: {
-    height: metrics.buttonHeight,
+    minHeight: metrics.buttonHeight,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     borderRadius: metrics.buttonRadius,
     alignItems: 'center',
     justifyContent: 'center',
@@ -47,5 +49,6 @@ const styles = StyleSheet.create({
   },
   label: {
     ...textStyles.button,
+    textAlign: 'center',
   },
 });

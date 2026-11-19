@@ -161,7 +161,7 @@ function QuizRound({ requestedQuizId, isTimed, version }) {
             const tile = TILES[index % TILES.length];
             const selected = index === selectedIndex;
             return <Pressable key={option.id} disabled={isConfirmed} onPress={() => { if (!lockedRef.current) setSelectedIndex(index); }}
-              accessibilityRole="radio" accessibilityLabel={`${String.fromCharCode(65 + index)}. ${option.text}`} accessibilityState={{ selected, disabled: isConfirmed }}
+              accessibilityRole="radio" accessibilityLabel={`${String.fromCharCode(65 + index)}. ${option.text}`} accessibilityState={{ checked: selected, disabled: isConfirmed }}
               style={({ pressed }) => [styles.tile, { backgroundColor: tile.color }, selected && styles.selected, isConfirmed && !selected && styles.dimmed, pressed && styles.pressed]}>
               <View style={styles.tileTop}><Text style={styles.shape}>{tile.shape}</Text><Text style={styles.letter}>{String.fromCharCode(65 + index)}</Text></View>
               <Text style={styles.optionText}>{option.text}</Text>

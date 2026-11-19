@@ -72,7 +72,7 @@ export default function ResultScreen() {
         </AnimatedEntrance>
         <View style={styles.footer}>
           {result?.quizId ? <Pressable onPress={() => router.replace({ pathname: '/quiz', params: { quizId: String(result.quizId) } })}
-            accessibilityRole="button" style={styles.again}><Text style={styles.buttonLabel}>{t("Jogar novamente")}</Text></Pressable> : null}
+            accessibilityRole="button" style={styles.again}><Text style={[styles.buttonLabel, { color: colors.accent }]}>{t("Jogar novamente")}</Text></Pressable> : null}
           <Pressable
             onPress={goHome}
             style={({ pressed }) => [styles.button, pressed && styles.pressed]}

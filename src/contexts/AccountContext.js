@@ -21,7 +21,8 @@ export function AccountProvider({ children }) {
   const [resource, setResource] = useState(null);
   const [busyOwner, setBusyOwner] = useState(null);
   const busy = Boolean(owner && busyOwner === owner);
-  const [favoritesBusy, setFavoritesBusy] = useState([]);
+  const [favoriteRequests, setFavoriteRequests] = useState([]);
+  const favoritesBusy = favoriteRequests.filter((key) => key.startsWith(owner + '|')).map((key) => key.slice(key.indexOf('|') + 1));
   const [error, setError] = useState(null);
   const activeOwner = useRef(owner);
   const mutations = useRef(new Set());
@@ -41,11 +42,11 @@ export function AccountProvider({ children }) {
     const revision = nextRevision(owner);
     return Promise.all([account.getAccountSettings(), account.getFavorites()]).then(async ([nextSettings, nextFavorites]) => {
       if (activeOwner.current !== owner || revisions.current.get(owner) !== revision) return;
-      setResource({ owner, settings: nextSettings, favorites: nextFavorites });
+      setResource({ owner, settings: nextSettings, favorites: nextFavorites, ready: true });
       setError(null);
       await preferenceStorage.setItemAsync(cacheKey(owner), JSON.stringify(nextSettings)).catch(() => {});
     }).catch((failure) => {
-      if (activeOwner.current === owner) setError(failure.message);
+      if (activeOwner.current === owner && revisions.current.get(owner) === revision) setError(failure.message);
     });
   }, [owner, nextRevision]);
   useEffect(() => {
@@ -54,7 +55,7 @@ export function AccountProvider({ children }) {
     preferenceStorage.getItemAsync(cacheKey(owner)).then((saved) => {
       if (!active || !saved) return;
       const cached = JSON.parse(saved);
-      setResource((previous) => previous?.owner === owner ? previous : { owner, settings: { ...defaults, ...cached }, favorites: [] });
+      setResource((previous) => previous?.owner === owner ? previous : { owner, settings: { ...defaults, ...cached }, favorites: [], ready: false });
     }).catch(() => {});
     refresh();
     const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') refresh(); });
@@ -66,7 +67,7 @@ export function AccountProvider({ children }) {
     return () => subscription.remove();
   }, [settings.locale]);
   async function mutate(operation) {
-    if (!owner || mutations.current.has(owner)) return;
+    if (!owner || !current?.ready || mutations.current.has(owner)) return;
     const requestOwner = owner;
     mutations.current.add(owner);
     nextRevision(owner);
@@ -74,7 +75,7 @@ export function AccountProvider({ children }) {
     try {
       const updated = await operation();
       if (activeOwner.current !== requestOwner) return;
-      setResource((previous) => ({ owner: requestOwner, settings: updated, favorites: previous?.owner === requestOwner ? previous.favorites : [] }));
+      setResource((previous) => ({ owner: requestOwner, settings: updated, favorites: previous?.owner === requestOwner ? previous.favorites : [], ready: true }));
       await preferenceStorage.setItemAsync(cacheKey(requestOwner), JSON.stringify(updated)).catch(() => {});
       setError(null);
       return updated;
@@ -85,11 +86,12 @@ export function AccountProvider({ children }) {
   }
   async function toggleFavorite(quiz) {
     const id = String(quiz.id);
-    if (favoritesBusy.includes(id) || !owner || !current) return;
+    if (favoritesBusy.includes(id) || !owner || !current?.ready) return;
     const requestOwner = owner;
+    const requestKey = owner + '|' + id;
     const desired = !favorites.some((item) => String(item.id) === id);
     nextRevision(owner);
-    setFavoritesBusy((ids) => [...ids, id]);
+    setFavoriteRequests((keys) => [...keys, requestKey]);
     try {
       await account.saveFavorite(id, desired);
       if (activeOwner.current !== requestOwner) return;
@@ -97,7 +99,7 @@ export function AccountProvider({ children }) {
         if (previous?.owner !== requestOwner) return previous;
         return { ...previous, favorites: desired ? [...previous.favorites.filter((item) => String(item.id) !== id), quiz] : previous.favorites.filter((item) => String(item.id) !== id) };
       });
-    } finally { setFavoritesBusy((ids) => ids.filter((item) => item !== id)); }
+    } finally { setFavoriteRequests((keys) => keys.filter((key) => key !== requestKey)); }
   }
   const colors = useMemo(() => ({
     ...officialColors,
@@ -106,7 +108,7 @@ export function AccountProvider({ children }) {
     accent: accents[settings.accent] ?? accents.violet,
     link: accents[settings.accent] ?? accents.violet,
   }), [settings.theme, settings.accent]);
-  return <Context.Provider value={{ settings, favorites, favoritesBusy, busy, error, refresh, colors, loading: Boolean(owner && !current && !error),
+  return <Context.Provider value={{ settings, favorites, favoritesBusy, busy, error, refresh, colors, loading: Boolean(owner && !current?.ready && !error),
     update: (data) => mutate(() => account.updateAccountSettings(data)),
     uploadPhoto: (asset) => mutate(() => account.uploadAvatar(asset)),
     removePhoto: () => mutate(account.deleteAvatar), toggleFavorite,

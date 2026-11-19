@@ -24,6 +24,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const account = useAccount();
   const { settings, colors, busy, loading, error, refresh } = account;
+  const blocked = busy || loading || Boolean(error);
   const { profile, progress, hitRate, error: statsError } = useProfileData();
   const [photoBusy, setPhotoBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -42,13 +43,13 @@ export default function ProfileScreen() {
       context.resize({ width: 512, height: 512 });
       const image = await context.renderAsync();
       const resized = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
-      await account.uploadPhoto(resized);
-      setMessage(t('profileSaved'));
+      const updated = await account.uploadPhoto(resized);
+      if (updated) setMessage(t('profileSaved'));
     } catch (failure) { Alert.alert(t('saveFailed'), failure.name === 'ApiError' || failure.name === 'ApiConnectionError' ? failure.message : t('photoFailed')); }
     finally { setPhotoBusy(false); }
   }
   async function removePhoto() {
-    try { await account.removePhoto(); setMessage(t('profileSaved')); }
+    try { const updated = await account.removePhoto(); if (updated) setMessage(t('profileSaved')); }
     catch (failure) { Alert.alert(t('saveFailed'), failure.message); }
   }
   async function linkGoogle() {
@@ -81,9 +82,9 @@ export default function ProfileScreen() {
         <Text style={textStyles.title}>{settings.displayName || user?.username}</Text>
         <Text style={textStyles.caption}>{user?.email}</Text>
       </View>
-      <AppButton title={t('choosePhoto')} onPress={choosePhoto} isLoading={photoBusy} disabled={busy || loading} />
-      {settings.hasAvatar ? <AppButton title={t('removePhoto')} onPress={removePhoto} disabled={busy || photoBusy} /> : null}
-      <NameEditor key={String(user?.id) + ':' + settings.displayName} initial={settings.displayName} onSave={account.update} disabled={busy || loading} onSaved={() => setMessage(t('profileSaved'))} />
+      <AppButton title={t('choosePhoto')} onPress={choosePhoto} isLoading={photoBusy} disabled={blocked} />
+      {settings.hasAvatar ? <AppButton title={t('removePhoto')} onPress={removePhoto} disabled={blocked || photoBusy} /> : null}
+      <NameEditor key={String(user?.id) + ':' + settings.displayName} initial={settings.displayName} onSave={account.update} disabled={blocked} onSaved={() => setMessage(t('profileSaved'))} />
       {message ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[textStyles.body, { color: colors.difficultyEasy }]}>{message}</Text> : null}
       <View style={{ padding: 18, gap: 8, borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 20, backgroundColor: colors.fieldFill }}>
         <Text style={textStyles.heading}>{t('Nível')} {profile.level} · {t(profile.rankTitle)}</Text>
@@ -94,11 +95,11 @@ export default function ProfileScreen() {
       <AppButton title={t('myFavorites')} onPress={() => router.push('/favorites')} />
       <Text style={textStyles.heading}>{t('appearance')}</Text>
       <Text style={textStyles.caption}>{t('personalAppearance')}</Text>
-      <ChoiceRow label={t('theme')} value={settings.theme} options={getAppearanceChoices('theme')} disabled={busy || loading} onChange={(theme) => account.update({ theme })} />
-      <ChoiceRow label={t('accent')} value={settings.accent} options={getAppearanceChoices('accent')} disabled={busy || loading} onChange={(accent) => account.update({ accent })} />
-      <ChoiceRow label={t('language')} value={settings.locale} options={[['pt-BR', 'Português (Brasil)'], ['en', 'English'], ['device', t('deviceLanguage')]]} disabled={busy || loading} onChange={(locale) => account.update({ locale })} />
+      <ChoiceRow label={t('theme')} value={settings.theme} options={getAppearanceChoices('theme')} disabled={blocked} onChange={(theme) => account.update({ theme })} />
+      <ChoiceRow label={t('accent')} value={settings.accent} options={getAppearanceChoices('accent')} disabled={blocked} onChange={(accent) => account.update({ accent })} />
+      <ChoiceRow label={t('language')} value={settings.locale} options={[['pt-BR', 'Português (Brasil)'], ['en', 'English'], ['device', t('deviceLanguage')]]} disabled={blocked} onChange={(locale) => account.update({ locale })} />
       <Text style={textStyles.caption}>{t('questionLanguage')}</Text>
-      <AppButton title={t(settings.googleLinked ? 'googleLinked' : 'linkGoogle')} onPress={linkGoogle} isLoading={googleBusy} disabled={settings.googleLinked || busy || loading} />
+      <AppButton title={t(settings.googleLinked ? 'googleLinked' : 'linkGoogle')} onPress={linkGoogle} isLoading={googleBusy} disabled={settings.googleLinked || blocked} />
       <AppButton title={t('Sair da conta')} onPress={confirmLogout} />
     </AnimatedEntrance>
   </ScreenContainer>;
@@ -112,7 +113,7 @@ function NameEditor({ initial, onSave, onSaved, disabled }) {
     const displayName = name.trim();
     if (displayName.length < 2 || displayName.length > 50 || /[\u0000-\u001f\u007f]/.test(displayName)) { setError(t('invalidName')); return; }
     setSaving(true); setError('');
-    try { await onSave({ displayName }); onSaved(); }
+    try { const updated = await onSave({ displayName }); if (updated) onSaved(); }
     catch (failure) { setError(failure.message); }
     finally { setSaving(false); }
   }

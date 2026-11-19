@@ -6,6 +6,7 @@ export function setLocale(value) {
   const next = value === 'en' ? 'en' : 'pt-BR';
   if (next === locale) return;
   locale = next;
+  if (typeof document !== 'undefined') document.documentElement.lang = next;
   listeners.forEach((listener) => listener());
 }
 export function subscribeLocale(listener) { listeners.add(listener); return () => listeners.delete(listener); }
