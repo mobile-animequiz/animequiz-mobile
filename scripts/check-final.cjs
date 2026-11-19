@@ -3,7 +3,7 @@ const root=path.resolve(__dirname,'..');
 function read(name){return JSON.parse(fs.readFileSync(path.join(root,name),'utf8'));}
 async function main(){
   const pkg=read('package.json'),eas=read('eas.json');
-  for(const name of ['expo-image-picker','expo-image-manipulator','expo-localization','@react-native-google-signin/google-signin']){
+  for(const name of ['expo-file-system','expo-image-picker','expo-image-manipulator','expo-localization','@react-native-google-signin/google-signin']){
     try{require.resolve(name+'/package.json',{paths:[root]});}catch{throw new Error('Falta instalar '+name+'. Execute npm run setup:next com acesso ao npm.');}
   }
   const lock=read('package-lock.json');
