@@ -2,6 +2,8 @@
 
 Situação em 19/11/2026: configuração preparada e verificações locais parciais. **O APK ainda não foi gerado.**
 
+Após a instalação das dependências pelo usuário, a resolução da configuração Expo passou e a exportação Android foi concluída: 1.326 módulos, 34 assets e bundle Hermes de aproximadamente 2,9 MB. Essa exportação valida o empacotamento JavaScript; não é o APK nativo instalável.
+
 Base examinada: mobile `6eee26e`, API `fb26078`, com o `package-lock.json` que já havia sido gerado na cópia local do mobile. O trabalho está na branch `feat/android-baseline`, em uma cópia separada. A API e as pastas originais abertas nas IDEs não foram alteradas nesta etapa.
 
 ## O que foi preparado
@@ -44,11 +46,24 @@ O projeto original é JavaScript. Ainda não há `tsconfig.json`; `tsc --noEmit`
 Entre com a conta que possui acesso ao projeto Expo existente:
 
 ```powershell
-npx.cmd eas-cli@latest login
-npx.cmd eas-cli@latest whoami
-npx.cmd eas-cli@latest project:info
+npm.cmd run expo:login
+```
+
+Execute esse comando sozinho. Aguarde o download da CLI e responda às perguntas de login com os dados da sua conta. A opção `--yes` confirma somente a instalação do pacote da CLI: ela não faz login automaticamente nem responde às configurações de assinatura.
+
+Depois de o login terminar e o terminal voltar ao prompt, confira a conta:
+
+```powershell
+npm.cmd run expo:whoami
+```
+
+Somente depois, execute:
+
+```powershell
 npm.cmd run build:apk:current
 ```
+
+Não cole o comando seguinte enquanto o terminal estiver esperando uma resposta. O erro `npm error canceled` ocorrido na pergunta `Ok to proceed? (y)` cancelou a instalação da CLI; não foi uma falha de compilação do aplicativo.
 
 O projeto configurado tem ID `2ef330d1-cc20-4fc2-99c8-ec210409c626`, slug `mobile-animequiz` e pacote Android `com.sn6team.animequiz`. Se a conta não tiver acesso, obtenha acesso do responsável por esse projeto. A organização GitHub e a conta/organização Expo são permissões diferentes. Preserve o vínculo existente; não crie outro projeto automaticamente para contornar um erro de acesso.
 
@@ -67,6 +82,18 @@ O build só estará disponível depois de a tarefa EAS concluir com sucesso. Use
 7. Registre o ID/link do build, modelo do celular, versão Android e resultado das verificações. Uma execução em Expo Go ou um bundle exportado não substituem esse teste do APK instalado.
 
 O cadastro Google, a recuperação de senha, a edição de perfil, os favoritos persistentes e as melhorias visuais são etapas seguintes. Os botões já existentes de Google e recuperação ainda não têm suporte funcional no backend atual.
+
+## Logs da outra cópia do projeto
+
+O stacktrace enviado com o caminho `C:\Users\Isaac\animequiz-mobile\node_modules\expo-router\build\ExpoRoot.js` veio da cópia original. Ela ainda contém as chamadas `dismissAll` antigas e é diferente desta cópia na branch `feat/android-baseline`. A pilha isolada, sem a mensagem inicial de erro, não permite afirmar que toda falha em ExpoRoot tenha essa causa.
+
+Para testar os ajustes desta branch, pare o Metro anterior com Ctrl+C no terminal em que ele está rodando. Em seguida, já no diretório desta cópia, rode o comando abaixo sozinho:
+
+```powershell
+npm.cmd run start:clean
+```
+
+Esse processo serve para testar no Expo Go. Para executar login ou build enquanto ele estiver ativo, use outro terminal no mesmo diretório.
 
 ## Documentação consultada
 

@@ -19,14 +19,17 @@
   },
   "scripts": {
     "start": "expo start",
+    "start:clean": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node --experimental-vm-modules --test tests/*.test.cjs",
-    "build:apk": "npx eas-cli@latest build --platform android --profile preview",
+    "expo:login": "npx --yes eas-cli@latest login",
+    "expo:whoami": "npx --yes eas-cli@latest whoami",
+    "build:apk": "npx --yes eas-cli@latest build --platform android --profile preview",
     "check:apk": "node scripts/check-apk.cjs",
-    "build:apk:current": "node scripts/check-apk.cjs --online && npx eas-cli@latest build --platform android --profile current"
+    "build:apk:current": "node scripts/check-apk.cjs --online && npx --yes eas-cli@latest build --platform android --profile current"
   },
   "private": true,
   "devDependencies": {

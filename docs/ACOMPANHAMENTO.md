@@ -84,10 +84,12 @@ Os nomes de novas variáveis/endpoints serão definidos com a implementação. E
 - Preflight offline: configuração e arquivos PNG aprovados; manifesto/lockfile compatíveis.
 - Preflight online: interrompido com `ENOTFOUND`; API pública não validada por rede.
 - Download/execução da CLI EAS: bloqueado por DNS do ambiente. Nenhuma tarefa de build foi criada.
-- Lint com a configuração Expo nos arquivos alterados e no script novo: aprovado, com aviso de detecção da versão React porque as dependências foram lidas fora da cópia de trabalho. O lint completo encontrou erros preexistentes em useHomeData, useProfileData, useSplashAnimation e QuizScreen (set-state-in-effect/refs). Não foi declarado lint completo aprovado.
+- Lint com a configuração Expo nos arquivos alterados e no script novo: aprovado. Após a instalação completa de dependências pelo usuário, `npm run lint` voltou a executar normalmente e confirmou 10 erros preexistentes em useHomeData, useProfileData, useSplashAnimation e QuizScreen (set-state-in-effect/refs). Não foi declarado lint completo aprovado.
 - Configurações inválidas: o preflight rejeitou override de URL local e de versão incompatível com o perfil current. `node --check` do script e `git diff --check` aprovados.
 - `tsc --noEmit`: sem projeto TypeScript configurado; mostrou ajuda e saiu com código 1. Não houve checagem de tipos concluída.
-- Resolução de configuração Expo usando dependências externas à cópia: falhou na resolução de plugin. É necessário repetir com uma instalação completa local; isso não demonstra defeito do plugin no projeto original.
+- `expo config --type public --json`: aprovado com as dependências instaladas na própria cópia; o plugin de splash resolveu normalmente.
+- `expo export --platform android --max-workers 1`: aprovado, com 1.326 módulos, 34 assets e bundle Hermes de aproximadamente 2,9 MB. É uma exportação do bundle, não um APK nativo.
+- O usuário concluiu `npm ci`. O login EAS foi cancelado ao receber o próximo comando na pergunta de confirmação de instalação npm. Foram adicionados `expo:login`/`expo:whoami` e `--yes` às invocações npx da CLI, para eliminar essa confirmação de instalação. Login e build continuam etapas separadas e interativas.
 - A API não foi alterada nesta etapa; a suíte Java não foi repetida. Os 283 testes históricos da revisão anterior não substituem uma nova execução depois das próximas mudanças.
 
-O APK, o bundle Android, as permissões do manifesto nativo gerado e a validação de interface no celular continuam pendentes.
+O APK, as permissões do manifesto nativo gerado e a validação de interface no celular continuam pendentes. O bundle Android já foi exportado.
