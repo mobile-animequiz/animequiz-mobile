@@ -24,7 +24,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node --experimental-vm-modules --test tests/*.test.cjs",
-    "build:apk": "npx eas-cli@latest build --platform android --profile preview"
+    "build:apk": "npx eas-cli@latest build --platform android --profile preview",
+    "check:apk": "node scripts/check-apk.cjs",
+    "build:apk:current": "node scripts/check-apk.cjs --online && npx eas-cli@latest build --platform android --profile current"
   },
   "private": true,
   "devDependencies": {
