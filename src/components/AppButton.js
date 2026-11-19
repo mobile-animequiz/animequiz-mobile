@@ -1,11 +1,9 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, metrics, textStyles } from '../styles/theme';
-import { useAccount } from '../contexts/AccountContext';
 
 // Full-width pill button on the dark fill ("Log in", "Send link", "Create Account").
 export default function AppButton({ title, onPress, isLoading = false, disabled = false }) {
-  const { colors: personal } = useAccount();
   const isDisabled = disabled || isLoading;
 
   return (
@@ -17,15 +15,14 @@ export default function AppButton({ title, onPress, isLoading = false, disabled 
       accessibilityState={{ disabled: isDisabled, busy: isLoading }}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: personal.accent },
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}
     >
       {isLoading ? (
-        <ActivityIndicator color={colors.textOnLight} />
+        <ActivityIndicator color={colors.textPrimary} />
       ) : (
-        <Text style={[styles.label, { color: colors.textOnLight }]}>{title}</Text>
+        <Text style={styles.label}>{title}</Text>
       )}
     </Pressable>
   );
@@ -34,7 +31,7 @@ export default function AppButton({ title, onPress, isLoading = false, disabled 
 const styles = StyleSheet.create({
   button: {
     minHeight: metrics.buttonHeight,
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: metrics.buttonRadius,
     alignItems: 'center',

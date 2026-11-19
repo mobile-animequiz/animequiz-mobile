@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     minWidth: metrics.pillMinWidth,
     minHeight: metrics.pillHeight,
     maxWidth: '100%',
-    paddingVertical: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
