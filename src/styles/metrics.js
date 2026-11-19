@@ -1,7 +1,7 @@
 // Sizes and spacing (dp) measured from the Figma prototype (390 x 844 frame).
 
 export const metrics = {
-  screenPaddingX: 42,
+  screenPaddingX: 24,
   // Text inset inside fields and indent of titles / subtitles
   contentInset: 16,
 
@@ -15,7 +15,7 @@ export const metrics = {
   buttonRadius: 26,
 
   // Auto-width social pills ("Continue with Google")
-  pillHeight: 38,
+  pillHeight: 52,
   pillRadius: 19,
   pillMinWidth: 177,
   pillPaddingX: 12,
@@ -41,10 +41,10 @@ export const metrics = {
   cardGap: 12,
   levelBadgeSize: 44,
   progressHeight: 8,
-  chipHeight: 36,
+  chipHeight: 48,
   chipRadius: 18,
   chipPaddingX: 16,
   chipGap: 10,
-  playButtonHeight: 38,
+  playButtonHeight: 48,
   playButtonMinWidth: 84,
 };

@@ -1,14 +1,17 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApiVersion } from '../contexts/ApiVersionContext';
 import { colors, textStyles } from '../styles/theme';
 
 export default function ApiVersionSelector() {
+  useI18n();
   const { version, switchVersion, isChecking, connection, error } = useApiVersion();
   return (
     <View style={styles.panel}>
       <View style={styles.row}>
-        <Text style={styles.title}>Versão da API</Text>
+        <Text style={styles.title}>{t("Versão da API")}</Text>
         <View style={styles.row} accessibilityRole="radiogroup">
           {['1', '2'].map((value) => (
             <Pressable key={value} disabled={isChecking} onPress={() => switchVersion(value)}
@@ -20,11 +23,11 @@ export default function ApiVersionSelector() {
           ))}
         </View>
       </View>
-      <Text style={styles.detail}>{version === '2' ? 'Perguntas com imagens e tempo sugerido' : 'Perguntas no formato original'}</Text>
+      <Text style={styles.detail}>{version === '2' ? t("Perguntas com imagens e tempo sugerido") : t("Perguntas no formato original")}</Text>
       <Pressable disabled={isChecking} onPress={() => switchVersion(version)} accessibilityRole="button"
         accessibilityState={{ disabled: isChecking }} style={styles.check}>
         {isChecking ? <ActivityIndicator size="small" color={colors.accent} /> : null}
-        <Text style={styles.checkLabel}>{isChecking ? 'Verificando servidor…' : 'Verificar conexão'}</Text>
+        <Text style={styles.checkLabel}>{isChecking ? 'Verificando servidor…' : t("Verificar conexão")}</Text>
       </Pressable>
       {connection ? <Text style={styles.success} accessibilityLiveRegion="polite">{connection}</Text> : null}
       {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
