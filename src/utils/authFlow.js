@@ -5,9 +5,8 @@ import { router } from 'expo-router';
 // Home and the auth screens are cleared from the history, so "back" (or the Android back
 // button) never returns to Welcome / Log In.
 export function handleAuthSuccess() {
-  if (router.canDismiss()) {
-    router.dismissAll();
-  }
+  // Stack.Protected already removes guest screens after authentication. A
+  // dismissAll here can dispatch POP_TO_TOP against the stack being removed.
   router.replace('/home');
 }
 

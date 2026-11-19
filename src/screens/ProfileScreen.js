@@ -77,9 +77,7 @@ export default function ProfileScreen() {
   async function logout() {
     try {
       await signOut();
-      if (router.canDismiss()) {
-        router.dismissAll();
-      }
+      // Stack.Protected removes authenticated screens when the session ends.
       router.replace('/welcome');
     } catch {
       Alert.alert('Não foi possível sair', 'Tente novamente.');
