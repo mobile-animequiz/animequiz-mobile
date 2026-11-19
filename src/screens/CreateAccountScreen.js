@@ -1,3 +1,5 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { useRef } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
@@ -13,9 +15,9 @@ import useCreateAccountForm from '../hooks/useCreateAccountForm';
 import useGoBack from '../hooks/useGoBack';
 import { metrics } from '../styles/theme';
 import { handleAuthSuccess } from '../utils/authFlow';
-import { BIRTH_DATE_PLACEHOLDER } from '../utils/formatters';
 
 export default function CreateAccountScreen() {
+  useI18n();
   const goBack = useGoBack();
   const emailInputRef = useRef(null);
   const passwordInputRef = useRef(null);
@@ -23,16 +25,16 @@ export default function CreateAccountScreen() {
   const form = useCreateAccountForm({ onSuccess: handleAuthSuccess });
 
   function showBirthDateInfo() {
-    Alert.alert('Date of Birth', `Enter your date of birth using the format ${BIRTH_DATE_PLACEHOLDER}.`);
+    Alert.alert(t("Date of Birth"), t('birthHelp'));
   }
 
   return (
     <ScreenContainer>
-      <ScreenHeader title="Create Account" onBackPress={goBack} />
+      <ScreenHeader title={t("Create Account")} onBackPress={goBack} />
 
       <View style={styles.fields}>
         <TextField
-          placeholder="Date of Birth"
+          placeholder={t("Date of Birth")}
           value={form.birthDate}
           onChangeText={form.handleBirthDateChange}
           error={form.errors.birthDate}
@@ -40,11 +42,11 @@ export default function CreateAccountScreen() {
           maxLength={10}
           returnKeyType="next"
           onSubmitEditing={() => emailInputRef.current?.focus()}
-          rightElement={<InfoButton onPress={showBirthDateInfo} accessibilityLabel="Date of Birth format" />}
+          rightElement={<InfoButton onPress={showBirthDateInfo} accessibilityLabel={t("Date of Birth format")} />}
         />
 
         <TextField
-          placeholder="Email"
+          placeholder={t("Email")}
           inputRef={emailInputRef}
           value={form.email}
           onChangeText={form.handleEmailChange}
@@ -77,7 +79,7 @@ export default function CreateAccountScreen() {
       <FormError message={form.errors.form} style={styles.formError} />
 
       <View style={styles.action}>
-        <AppButton title="Create Account" onPress={form.handleSubmit} isLoading={form.isLoading} />
+        <AppButton title={t("Create Account")} onPress={form.handleSubmit} isLoading={form.isLoading} />
       </View>
     </ScreenContainer>
   );

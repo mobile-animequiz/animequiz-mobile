@@ -1,3 +1,5 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import AppButton from '../components/AppButton';
@@ -8,16 +10,13 @@ import TextField from '../components/TextField';
 import useGoBack from '../hooks/useGoBack';
 import useResetPasswordForm from '../hooks/useResetPasswordForm';
 
-const INSTRUCTIONS =
-  'To recover your account, please enter the email address linked to your account.\n' +
-  'We’ll send you instructions to reset your password.';
-
 export default function ResetPasswordScreen() {
+  useI18n();
   const goBack = useGoBack();
 
   const form = useResetPasswordForm({
-    onSuccess: (email) => {
-      Alert.alert('Check your email', `We sent password reset instructions to ${email}.`, [
+    onSuccess: () => {
+      Alert.alert(t("Check your email"), t('resetGeneric'), [
         { text: 'OK', onPress: goBack },
       ]);
     },
@@ -25,10 +24,10 @@ export default function ResetPasswordScreen() {
 
   return (
     <ScreenContainer>
-      <ScreenHeader title="Reset Password" subtitle={INSTRUCTIONS} onBackPress={goBack} />
+      <ScreenHeader title={t("Reset Password")} subtitle={t('resetInstructions')} onBackPress={goBack} />
 
       <TextField
-        placeholder="Email"
+        placeholder={t("Email")}
         value={form.email}
         onChangeText={form.handleEmailChange}
         error={form.errors.email}
@@ -45,7 +44,7 @@ export default function ResetPasswordScreen() {
       <FormError message={form.errors.form} style={styles.formError} />
 
       <View style={styles.action}>
-        <AppButton title="Send link" onPress={form.handleSubmit} isLoading={form.isLoading} />
+        <AppButton title={t("Send link")} onPress={form.handleSubmit} isLoading={form.isLoading} />
       </View>
     </ScreenContainer>
   );

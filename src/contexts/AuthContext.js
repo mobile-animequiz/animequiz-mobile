@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { login as authenticate, logout as clearSession, register as createAccount } from '../services/authService';
+import { login as authenticate, logout as clearSession, register as createAccount, signInWithProvider } from '../services/authService';
 import { setUnauthorizedHandler } from '../services/apiClient';
 import { clearAccessToken, getAccessToken } from '../services/authStorage';
 import { getCurrentUser as fetchCurrentUser } from '../services/userService';
@@ -12,6 +12,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
+  const [sessionError, setSessionError] = useState(null);
+  const [restoreGeneration, setRestoreGeneration] = useState(0);
   const activeTokenRef = useRef(null);
 
   const invalidateSession = useCallback(async (rejectedToken) => {
@@ -47,12 +49,13 @@ export function AuthProvider({ children }) {
           setUser(currentUser);
           setToken(savedToken);
         }
-      } catch {
+      } catch (failure) {
         // On 401 apiClient clears the invalid JWT. On network failure, keep the
         // JWT in SecureStore for a later launch, but do not mark it verified.
         if (isMounted) {
           setToken(null);
           setUser(null);
+          setSessionError(failure?.message ?? null);
         }
       } finally {
         if (isMounted) setIsReady(true);
@@ -64,16 +67,24 @@ export function AuthProvider({ children }) {
       isMounted = false;
       unregister();
     };
-  }, [invalidateSession]);
+  }, [invalidateSession, restoreGeneration]);
+
+  const retryRestore = useCallback(() => {
+    setSessionError(null);
+    setIsReady(false);
+    setRestoreGeneration((value) => value + 1);
+  }, []);
 
   const refreshCurrentUser = useCallback(async () => {
+    const requestToken = activeTokenRef.current;
     setIsUserLoading(true);
     try {
       const currentUser = await fetchCurrentUser();
       if (!currentUser?.id) {
-        await invalidateSession(activeTokenRef.current);
+        await invalidateSession(requestToken);
         throw new Error('A API não retornou um usuário válido.');
       }
+      if (activeTokenRef.current !== requestToken) return null;
       setUser(currentUser);
       return currentUser;
     } finally {
@@ -104,6 +115,11 @@ export function AuthProvider({ children }) {
     return activateSession(session);
   }, [activateSession]);
 
+  const signInWithGoogle = useCallback(async () => {
+    const session = await signInWithProvider('google');
+    return session ? activateSession(session) : null;
+  }, [activateSession]);
+
   const signOut = useCallback(async () => {
     await clearSession();
     activeTokenRef.current = null;
@@ -116,12 +132,15 @@ export function AuthProvider({ children }) {
     user,
     isReady,
     isUserLoading,
+    sessionError,
+    retryRestore,
     isAuthenticated: Boolean(token && user),
     refreshCurrentUser,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
-  }), [token, user, isReady, isUserLoading, refreshCurrentUser, signIn, signUp, signOut]);
+  }), [token, user, isReady, isUserLoading, sessionError, retryRestore, refreshCurrentUser, signIn, signUp, signInWithGoogle, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

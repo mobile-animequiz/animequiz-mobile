@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
@@ -11,5 +12,5 @@ export function handleAuthSuccess() {
 }
 
 export function showAuthError(message) {
-  Alert.alert('Something went wrong', message);
+  Alert.alert(t("Something went wrong"), message);
 }

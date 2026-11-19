@@ -1,53 +1,27 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-
+import { Animated, Pressable, StyleSheet } from 'react-native';
 import Icon from './Icon';
 import TextField from './TextField';
-import { metrics } from '../styles/theme';
-
-// Password input with the two eye buttons shown in the prototype:
-// crossed eye = hide the password, open eye = show it.
-export default function PasswordField({ placeholder = 'Password', ...fieldProps }) {
-  const [isVisible, setIsVisible] = useState(false);
-
-  return (
-    <TextField
-      placeholder={placeholder}
-      secureTextEntry={!isVisible}
-      autoCapitalize="none"
-      autoCorrect={false}
-      rightElement={
-        <View style={styles.icons}>
-          <Pressable
-            onPress={() => setIsVisible(false)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Hide password"
-            accessibilityState={{ selected: !isVisible }}
-          >
-            <Icon name="eyeOff" />
-          </Pressable>
-          <Pressable
-            onPress={() => setIsVisible(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Show password"
-            accessibilityState={{ selected: isVisible }}
-          >
-            <Icon name="eye" />
-          </Pressable>
-        </View>
-      }
-      {...fieldProps}
-    />
-  );
+import useReducedMotion from '../hooks/useReducedMotion';
+import useI18n from '../hooks/useI18n';
+export default function PasswordField({ placeholder, ...fieldProps }) {
+  const { t } = useI18n();
+  const [isVisible, setVisible] = useState(false);
+  const [scale] = useState(() => new Animated.Value(1));
+  const reduced = useReducedMotion();
+  function toggle() {
+    setVisible((previous) => !previous);
+    if (!reduced) Animated.sequence([
+      Animated.timing(scale, { toValue: 0.8, duration: 70, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  }
+  return <TextField {...fieldProps} placeholder={placeholder ?? t('Password')} secureTextEntry={!isVisible}
+    autoCapitalize="none" autoCorrect={false} rightElement={
+      <Pressable onPress={toggle} style={styles.control} accessibilityRole="button"
+        accessibilityLabel={t(isVisible ? t("Hide password") : t("Show password"))} accessibilityState={{ selected: isVisible }}>
+        <Animated.View style={{ transform: [{ scale }] }}><Icon name={isVisible ? 'eye' : 'eyeOff'} /></Animated.View>
+      </Pressable>
+    } />;
 }
-
-const styles = StyleSheet.create({
-  icons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingRight: metrics.fieldIconInset - 1,
-  },
-});
+const styles = StyleSheet.create({ control: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' } });
