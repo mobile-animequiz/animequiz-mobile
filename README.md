@@ -4,6 +4,8 @@
 
 # AnimeQuiz Mobile
 
+Revisão para apresentação e correção de foto no Expo 57: [ENTREGA_ACADEMICA.md](docs/ENTREGA_ACADEMICA.md).
+
 App Expo SDK 57 / React Native 0.86 para consumir a API Java do AnimeQuiz.
 
 ## Instalar e executar
