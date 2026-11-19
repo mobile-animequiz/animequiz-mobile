@@ -1,3 +1,5 @@
+import { t, getLocale } from '../i18n/runtime';
+import { messages } from '../i18n/messages';
 import { getApiBaseUrl } from './apiConfig';
 import { getAccessToken } from './authStorage';
 import { getSelectedApiVersion } from './apiVersion';
@@ -80,8 +82,10 @@ async function readResponseBody(response) {
 function getErrorMessage(data, status) {
   // Never expose unexpected server diagnostics (including HTML or stack traces)
   // through user-facing screens.
+  if (status === 503) return t('error503');
+  if (status === 413) return t('error413');
   if (status >= 500) {
-    return 'O servidor está temporariamente indisponível. Tente novamente mais tarde.';
+    return t("O servidor está temporariamente indisponível. Tente novamente mais tarde.");
   }
 
   const message = typeof data?.message === 'string' ? data.message.trim() : '';
@@ -91,10 +95,10 @@ function getErrorMessage(data, status) {
     && !/[<>\r\n]/.test(message)
     && !/(exception|stack ?trace|traceback|org\.springframework|java\.)/i.test(message)
   ) {
-    return message;
+    return getLocale() === 'en' && !messages[message] ? t(DEFAULT_ERROR_MESSAGES[status] ?? t("Não foi possível concluir a solicitação. Tente novamente.")) : t(message);
   }
 
-  return DEFAULT_ERROR_MESSAGES[status] ?? 'Não foi possível concluir a solicitação. Tente novamente.';
+  return t(DEFAULT_ERROR_MESSAGES[status] ?? t("Não foi possível concluir a solicitação. Tente novamente."));
 }
 
 /**
@@ -126,7 +130,8 @@ export async function apiRequest(path, options = {}) {
 
   let requestBody = body;
   let requestToken = null;
-  if (body !== undefined && body !== null && typeof body !== 'string') {
+  const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body !== undefined && body !== null && typeof body !== 'string' && !multipart) {
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
     requestBody = JSON.stringify(body);
   }
@@ -178,11 +183,11 @@ export async function apiRequest(path, options = {}) {
     }
 
     if (error?.name === 'AbortError') {
-      throw new ApiConnectionError('A conexão com o servidor demorou demais. Tente novamente.', error);
+      throw new ApiConnectionError(t("A conexão com o servidor demorou demais. Tente novamente."), error);
     }
 
     throw new ApiConnectionError(
-      'Não foi possível conectar à API. Verifique sua conexão com a internet e tente novamente.',
+      t("Não foi possível conectar à API. Verifique sua conexão com a internet e tente novamente."),
       error,
     );
   } finally {

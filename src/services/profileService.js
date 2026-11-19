@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { apiGet, apiPut } from './apiClient';
 
 function unwrapResource(response) {
@@ -14,7 +15,7 @@ function unwrapResource(response) {
 /** Profile resource planned by the API: GET /users/{userId}/profile. */
 export async function getProfileByUserId(userId) {
   if (userId === undefined || userId === null || userId === '') {
-    throw new Error('A API não informou o identificador do usuário.');
+    throw new Error(t("A API não informou o identificador do usuário."));
   }
   const response = await apiGet(`users/${encodeURIComponent(userId)}/profile`);
   return unwrapResource(response);
@@ -23,7 +24,7 @@ export async function getProfileByUserId(userId) {
 /** Updates the authenticated player's profile. */
 export async function updateProfileByUserId(userId, payload) {
   if (userId === undefined || userId === null || userId === '') {
-    throw new Error('A API não informou o identificador do usuário.');
+    throw new Error(t("A API não informou o identificador do usuário."));
   }
   const response = await apiPut(`users/${encodeURIComponent(userId)}/profile`, payload);
   return unwrapResource(response);

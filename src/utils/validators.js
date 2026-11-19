@@ -11,7 +11,12 @@ export function isValidEmail(value) {
 }
 
 export function isValidPassword(value) {
-  return String(value).length >= PASSWORD_MIN_LENGTH;
+  const password = String(value);
+  const bytes = Array.from(password).reduce((total, character) => {
+    const code = character.codePointAt(0);
+    return total + (code > 0xffff ? 4 : code > 0x7ff ? 3 : code > 0x7f ? 2 : 1);
+  }, 0);
+  return password.length >= PASSWORD_MIN_LENGTH && bytes <= 72;
 }
 
 // Expects the DD/MM/YYYY format produced by formatBirthDateInput().

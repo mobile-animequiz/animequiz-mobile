@@ -1,9 +1,10 @@
+import { t } from '../i18n/runtime';
 import { apiPost } from './apiClient';
 
 function toBackendId(value) {
   const id = Number(value);
   if (!Number.isSafeInteger(id) || id <= 0) {
-    throw new Error('Uma questão ou alternativa possui identificador inválido.');
+    throw new Error(t("Uma questão ou alternativa possui identificador inválido."));
   }
   return id;
 }
@@ -12,7 +13,7 @@ function toBackendId(value) {
 export async function submitQuizAttempt(quizId, answers, idempotencyKey) {
   const id = toBackendId(quizId);
   if (!Array.isArray(answers) || answers.length === 0) {
-    throw new Error('Responda ao menos uma questão antes de finalizar.');
+    throw new Error(t("Responda ao menos uma questão antes de finalizar."));
   }
   const request = {
     answers: answers.map((answer) => ({
@@ -30,7 +31,7 @@ export async function submitQuizAttempt(quizId, answers, idempotencyKey) {
     || !Number.isInteger(result.totalQuestions)
     || !Number.isInteger(result.answeredQuestions)
   ) {
-    throw new Error('A API não retornou um resultado oficial válido.');
+    throw new Error(t("A API não retornou um resultado oficial válido."));
   }
   return result;
 }

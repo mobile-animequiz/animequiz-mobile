@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { apiGet } from './apiClient';
 
 const CATEGORY_LABELS = {
@@ -72,8 +73,8 @@ export function normalizeQuiz(resource) {
   if (id === undefined || id === null) return null;
   return {
     id: String(id),
-    title: String(firstValue(resource, ['title', 'name'], 'Quiz sem título')),
-    questionCount: Number(firstValue(resource, ['questionCount', 'totalQuestions', 'questionsCount'], 0)) || 0,
+    title: String(firstValue(resource, ['title', 'name'], t("Quiz sem título"))),
+    questionCount: Number(firstValue(resource, [t("questionCount"), 'totalQuestions', 'questionsCount'], 0)) || 0,
     difficulty: normalizeDifficulty(firstValue(resource, ['difficulty', 'level'])),
     ...category,
   };
@@ -102,7 +103,7 @@ export function normalizeQuestion(resource) {
     text: String(firstValue(resource, ['text', 'statement', 'content', 'question'], '')),
     options,
     imageUrl: typeof resource.imageUrl === 'string' && /^https:\/\//i.test(resource.imageUrl) ? resource.imageUrl : null,
-    imageAltText: typeof resource.imageAltText === 'string' ? resource.imageAltText : 'Imagem ilustrativa do anime',
+    imageAltText: typeof resource.imageAltText === 'string' ? resource.imageAltText : t("Imagem ilustrativa do anime"),
     timeLimitSeconds: Number.isInteger(resource.timeLimitSeconds) && resource.timeLimitSeconds >= 5
       && resource.timeLimitSeconds <= 300 ? resource.timeLimitSeconds : 30,
   };

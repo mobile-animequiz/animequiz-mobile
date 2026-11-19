@@ -1,3 +1,4 @@
+import { t, getLocale } from '../i18n/runtime';
 // Pure formatting helpers (no React / React Native dependencies).
 
 export const BIRTH_DATE_PLACEHOLDER = 'DD/MM/YYYY';
@@ -17,10 +18,10 @@ export function formatBirthDateInput(rawValue) {
 
 // Thousands separator in pt-BR style, without depending on Intl: 2450 -> "2.450".
 export function formatNumber(value) {
-  return String(Math.round(Number(value) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return String(Math.round(Number(value) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, getLocale() === 'en' ? ',' : '.');
 }
 
 // "1 questão" / "10 questões"
 export function formatQuestionCount(count) {
-  return `${count} ${count === 1 ? 'questão' : 'questões'}`;
+  return t('questionCount', { count });
 }

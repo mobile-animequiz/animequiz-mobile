@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import * as SecureStore from 'expo-secure-store';
 
 const ACCESS_TOKEN_KEY = 'animequiz.accessToken';
@@ -8,7 +9,7 @@ export async function getAccessToken() {
 
 export async function saveAccessToken(token) {
   if (typeof token !== 'string' || token.trim().length === 0) {
-    throw new Error('A API não retornou um token de acesso válido.');
+    throw new Error(t("A API não retornou um token de acesso válido."));
   }
 
   await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
