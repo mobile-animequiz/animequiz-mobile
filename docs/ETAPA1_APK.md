@@ -1,3 +1,7 @@
+# Registro da etapa inicial
+
+O usuário informou em 19/11/2026 que gerou o APK base e estava baixando em dois celulares. As instruções abaixo são históricas. Para a revisão com melhorias, use [ENTREGA_ATUAL.md](ENTREGA_ATUAL.md); primeiro atualize as dependências/lockfile e publique a API nova. O comando atual de entrega é npm run build:apk:final.
+
 # AnimeQuiz: APK da versão atual
 
 Situação em 19/11/2026: configuração preparada e verificações locais parciais. **O APK ainda não foi gerado.**

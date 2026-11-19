@@ -1,3 +1,7 @@
+# Revisão 1.1.0 em desenvolvimento
+
+Consulte [a entrega atual](docs/ENTREGA_ATUAL.md) para recursos, configurações, testes, bloqueios e APK final. Nesta revisão, execute npm run setup:next antes de npm ci: o lockfile das novas dependências precisa ser atualizado em um ambiente com acesso ao npm. O APK final ainda não foi gerado.
+
 # AnimeQuiz Mobile
 
 App Expo SDK 57 / React Native 0.86 para consumir a API Java do AnimeQuiz.
