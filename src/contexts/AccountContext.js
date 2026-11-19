@@ -5,11 +5,11 @@ import * as preferenceStorage from '../services/preferenceStorage';
 import { useAuth } from './AuthContext';
 import * as account from '../services/accountService';
 import { setLocale } from '../i18n/runtime';
-import { colors as officialColors } from '../styles/colors';
+import { colors as officialColors, backgroundGradient as officialGradient } from '../styles/colors';
 
 const Context = createContext(null);
 const defaults = { displayName: '', theme: 'midnight', accent: 'violet', locale: 'pt-BR', hasAvatar: false, avatarVersion: 0 };
-const accents = { violet: '#BAA8FF', cyan: '#7CE5DF', rose: '#FFB1D2' };
+const accents = { violet: officialColors.accent, cyan: '#7CE5DF', rose: '#FFB1D2' };
 const cacheKey = (id) => 'animequiz.preferences.' + id;
 function applyLocale(preference) {
   const language = preference === 'device' ? getLocales()[0]?.languageCode : preference;
@@ -103,12 +103,13 @@ export function AccountProvider({ children }) {
   }
   const colors = useMemo(() => ({
     ...officialColors,
-    backgroundTop: settings.theme === 'eclipse' ? '#180F1D' : '#0C1022',
-    backgroundBottom: settings.theme === 'eclipse' ? '#352038' : '#1D1640',
+    backgroundTop: settings.theme === 'eclipse' ? '#180F1D' : officialColors.backgroundTop,
+    backgroundBottom: settings.theme === 'eclipse' ? '#352038' : officialColors.backgroundBottom,
     accent: accents[settings.accent] ?? accents.violet,
-    link: accents[settings.accent] ?? accents.violet,
+    link: settings.accent === 'violet' ? officialColors.link : accents[settings.accent] ?? officialColors.link,
   }), [settings.theme, settings.accent]);
-  return <Context.Provider value={{ settings, favorites, favoritesBusy, busy, error, refresh, colors, loading: Boolean(owner && !current?.ready && !error),
+  const gradient = settings.theme === 'eclipse' ? { colors: [colors.backgroundTop, colors.backgroundBottom], locations: [0, 1] } : officialGradient;
+  return <Context.Provider value={{ settings, favorites, favoritesBusy, busy, error, refresh, colors, gradient, loading: Boolean(owner && !current?.ready && !error),
     update: (data) => mutate(() => account.updateAccountSettings(data)),
     uploadPhoto: (asset) => mutate(() => account.uploadAvatar(asset)),
     removePhoto: () => mutate(account.deleteAvatar), toggleFavorite,

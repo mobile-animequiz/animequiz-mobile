@@ -25,8 +25,8 @@
   "scripts": {
     "start": "expo start",
     "start:clean": "expo start --clear",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "node scripts/run-android.cjs",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node --experimental-vm-modules --test tests/*.test.cjs",
@@ -36,9 +36,10 @@
     "check:apk": "node scripts/check-apk.cjs",
     "build:apk:current": "node scripts/check-apk.cjs --online && npx --yes eas-cli@latest build --platform android --profile current",
     "typecheck": "tsc --noEmit",
-    "setup:next": "npm install && expo install --check",
+    "setup:next": "npm ci && expo install --check",
     "check:final": "node scripts/check-final.cjs --online",
-    "build:apk:final": "npm run lint && npm test && npm run typecheck && npm run check:final && npx --yes eas-cli@latest build --platform android --profile final"
+    "build:apk:final": "npm run lint && npm test && npm run typecheck && npm run check:final && npx --yes eas-cli@latest build --platform android --profile final",
+    "start:go": "expo start --go"
   },
   "private": true,
   "devDependencies": {

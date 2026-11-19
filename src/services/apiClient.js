@@ -2,7 +2,7 @@ import { t, getLocale } from '../i18n/runtime';
 import { messages } from '../i18n/messages';
 import { getApiBaseUrl } from './apiConfig';
 import { getAccessToken } from './authStorage';
-import { getSelectedApiVersion } from './apiVersion';
+import { getApiVersion } from './apiVersion';
 
 // Render may take longer to respond after an idle period (cold start).
 const DEFAULT_TIMEOUT_MS = 45000;
@@ -124,7 +124,7 @@ export async function apiRequest(path, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const headers = {
     Accept: 'application/json',
-    'X-API-Version': getSelectedApiVersion(),
+    'X-API-Version': getApiVersion(),
     ...customHeaders,
   };
 

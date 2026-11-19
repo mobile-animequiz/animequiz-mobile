@@ -10,24 +10,22 @@ import QuizCard from '../components/QuizCard';
 import ScreenContainer from '../components/ScreenContainer';
 import SectionHeader from '../components/SectionHeader';
 import StatusCard from '../components/StatusCard';
-import ApiVersionSelector from '../components/ApiVersionSelector';
 import AppButton from '../components/AppButton';
 import AnimatedEntrance from '../components/AnimatedEntrance';
-import { useApiVersion } from '../contexts/ApiVersionContext';
 import useHomeData from '../hooks/useHomeData';
 import { colors, metrics, textStyles } from '../styles/theme';
 
 // Home / dashboard: greeting, player status, category filter and quiz list.
-// Catalog and player statistics come from the selected API version.
+// Catalog and player statistics come from the production API.
 export default function HomeScreen() {
   useI18n();
   const router = useRouter();
-  const { isChecking } = useApiVersion();
+
   const [timed, setTimed] = useState(false);
   const { player, categories, selectedCategoryId, selectCategory, quizzes, loadError, isLoadingQuizzes, refreshPlayer, refreshQuizzes } = useHomeData();
 
   function handlePlay(quiz) {
-    if (isChecking) return;
+
     router.push({ pathname: '/quiz', params: { quizId: quiz.id, timed: String(timed) } });
   }
 
@@ -41,7 +39,7 @@ export default function HomeScreen() {
         <View style={styles.statusCard}>
           <StatusCard player={player} />
         </View>
-        <ApiVersionSelector />
+
         <View style={{ marginTop: 16 }}><AppButton title={t('myFavorites')} onPress={() => router.push('/favorites')} /></View>
         <Text style={[textStyles.caption, { marginTop: 12 }]}>{t('questionLanguage')}</Text>
         <View style={styles.challenge}>

@@ -46,7 +46,6 @@ async function main() {
   assert(/^[0-9a-f-]{36}$/i.test(manifest.extra?.eas?.projectId ?? ''),
     'Vínculo com o projeto Expo ausente.');
   const effectiveUrl = process.env.EXPO_PUBLIC_API_URL || profile.env.EXPO_PUBLIC_API_URL;
-  const effectiveVersion = process.env.EXPO_PUBLIC_API_VERSION || profile.env.EXPO_PUBLIC_API_VERSION;
   const url = new URL(effectiveUrl);
   assert(effectiveUrl.replace(/\/+$/, '') === profile.env.EXPO_PUBLIC_API_URL,
     'Remova o override local de EXPO_PUBLIC_API_URL; o perfil current fixa a origem da API.');
@@ -54,8 +53,6 @@ async function main() {
     'O APK distribuído precisa de uma origem HTTPS sem credenciais.');
   assert(url.pathname === '/' && !/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)/i.test(url.hostname),
     'Use a origem pública da API, acessível fora da rede do computador.');
-  assert(profile.env.EXPO_PUBLIC_API_VERSION === '1', 'O perfil current usa o contrato original.');
-  assert(effectiveVersion === '1', 'Remova o override local de EXPO_PUBLIC_API_VERSION para usar o perfil current.');
   const icon = checkPng(manifest.icon, 'Ícone');
   assert(icon.width === icon.height && icon.width >= 1024, 'Ícone deve ser quadrado e ter pelo menos 1024 px.');
   checkPng(manifest.android.adaptiveIcon.foregroundImage, 'Ícone adaptativo');

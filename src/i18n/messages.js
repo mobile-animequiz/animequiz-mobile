@@ -595,30 +595,6 @@ export const messages = {
     "pt-BR": "Pontuação calculada e registrada pela API",
     "en": "Score calculated and recorded by the server"
   },
-  "Versão da API": {
-    "pt-BR": "Versão da API",
-    "en": "API version"
-  },
-  "Selecione a API V1 ou V2.": {
-    "pt-BR": "Selecione a API V1 ou V2.",
-    "en": "Select API V1 or V2."
-  },
-  "Perguntas no formato original": {
-    "pt-BR": "Perguntas no formato original",
-    "en": "Questions in the original format"
-  },
-  "Perguntas com imagens e tempo sugerido": {
-    "pt-BR": "Perguntas com imagens e tempo sugerido",
-    "en": "Questions with images and suggested time"
-  },
-  "Verificando servidor.": {
-    "pt-BR": "Verificando servidor.",
-    "en": "Checking server."
-  },
-  "Verificar conexão": {
-    "pt-BR": "Verificar conexão",
-    "en": "Check connection"
-  },
   "Não foi possível processar os dados enviados. Verifique as informações e tente novamente.": {
     "pt-BR": "Não foi possível processar os dados enviados. Verifique as informações e tente novamente.",
     "en": "Could not process the submitted data. Check the fields and try again."
@@ -770,21 +746,5 @@ export const messages = {
   "photoFailed": {
     "pt-BR": "Não foi possível preparar a foto. Se o acesso foi negado, permita fotos nas configurações do celular.",
     "en": "Could not prepare the photo. If access was denied, allow photos in your phone settings."
-  },
-  "A API não confirmou a versão selecionada.": {
-    "pt-BR": "A API não confirmou a versão selecionada.",
-    "en": "The server did not confirm the selected API version."
-  },
-  "O servidor ainda está com a V2 antiga. Atualize a API para carregar imagens nas questões.": {
-    "pt-BR": "O servidor ainda está com a V2 antiga. Atualize a API para carregar imagens nas questões.",
-    "en": "Update the backend to use the current V2 question format."
-  },
-  "Não foi possível verificar a API.": {
-    "pt-BR": "Não foi possível verificar a API.",
-    "en": "Could not check the server."
-  },
-  "apiConnected": {
-    "pt-BR": "API V{version} conectada",
-    "en": "API V{version} connected"
   }
 };

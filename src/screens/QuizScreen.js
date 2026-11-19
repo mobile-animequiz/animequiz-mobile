@@ -9,23 +9,22 @@ import AnimatedProgress from '../components/AnimatedProgress';
 import useRemoteResource from '../hooks/useRemoteResource';
 import QuestionImage from '../components/QuestionImage';
 import ScreenContainer from '../components/ScreenContainer';
-import { useApiVersion } from '../contexts/ApiVersionContext';
 import { useAccount } from '../contexts/AccountContext';
 import { colors, metrics, textStyles } from '../styles/theme';
 import { getQuizById, getQuizQuestions } from '../services/quizService';
 import { submitQuizAttempt } from '../services/attemptService';
 import { remainingSeconds, createAttemptKey } from '../utils/quizRound';
 
-const TILES = [{ color: '#A9344D', shape: '▲' }, { color: '#2051A1', shape: '◆' }, { color: '#765B07', shape: '●' }, { color: '#1D725D', shape: '■' }];
+const TILES = [{ color: '#A9344D', shape: '\u25B2' }, { color: '#2051A1', shape: '\u25C6' }, { color: '#765B07', shape: '\u25CF' }, { color: '#1D725D', shape: '\u25A0' }];
 
 export default function QuizScreen() {
   const { quizId, timed } = useLocalSearchParams();
-  const { version } = useApiVersion();
+
   const requestedQuizId = Array.isArray(quizId) ? quizId[0] : quizId;
   const isTimed = timed === 'true';
-  return <QuizRound key={requestedQuizId + ':' + isTimed + ':' + version} requestedQuizId={requestedQuizId} isTimed={isTimed} version={version} />;
+  return <QuizRound key={requestedQuizId + ':' + isTimed} requestedQuizId={requestedQuizId} isTimed={isTimed} />;
 }
-function QuizRound({ requestedQuizId, isTimed, version }) {
+function QuizRound({ requestedQuizId, isTimed }) {
   useI18n();
   const router = useRouter();
   const scrollRef = useRef(null);
@@ -47,7 +46,7 @@ function QuizRound({ requestedQuizId, isTimed, version }) {
     if (!quiz || !questions.length) throw new Error(t('Este quiz ainda não possui perguntas disponíveis.'));
     return { quiz, questions };
   }, [requestedQuizId]);
-  const remote = useRemoteResource(requestedQuizId + ':' + version, load);
+  const remote = useRemoteResource(requestedQuizId, load);
   const quiz = remote.data?.quiz;
   const questions = remote.data?.questions ?? [];
   const isLoadingQuiz = remote.loading;
@@ -145,7 +144,7 @@ function QuizRound({ requestedQuizId, isTimed, version }) {
     <ScreenContainer scrollable={false} padded={false}>
       <View style={styles.header}>
         <Pressable onPress={confirmExit} disabled={isSubmittingAttempt} accessibilityRole="button" accessibilityLabel={t("Sair do quiz")} style={styles.close}><Text style={styles.closeLabel}>×</Text></Pressable>
-        <View style={styles.heading}><Text style={styles.eyebrow}>API V{version} · {quiz.categoryLabel}</Text><Text style={styles.counter}>{t("Pergunta")} {questionIndex + 1} {t("de")} {total}</Text></View>
+        <View style={styles.heading}><Text style={styles.eyebrow}>{quiz.categoryLabel}</Text><Text style={styles.counter}>{t("Pergunta")} {questionIndex + 1} {t("de")} {total}</Text></View>
         {isTimed ? <View style={[styles.timer, secondsLeft <= 5 && styles.timerWarning]} accessibilityLabel={t('secondsRemaining', { count: secondsLeft })}>
           <Text style={styles.timerNumber}>{secondsLeft}</Text><Text style={styles.timerUnit}>{t("seg")}</Text>
         </View> : <Text style={styles.untimed}>{t("Sem tempo")}</Text>}

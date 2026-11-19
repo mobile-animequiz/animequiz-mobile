@@ -9,13 +9,13 @@ import { useAccount } from '../contexts/AccountContext';
 // keyboard avoidance and (optionally) vertical scrolling.
 // `padded={false}` removes the horizontal screen padding (used by the Splash).
 export default function ScreenContainer({ children, scrollable = true, padded = true }) {
-  const { colors } = useAccount();
+  const { gradient } = useAccount();
   const contentStyle = padded ? styles.padded : null;
 
   return (
     <LinearGradient
-      colors={[colors.backgroundTop, colors.backgroundBottom]}
-      locations={[0, 1]}
+      colors={gradient.colors}
+      locations={gradient.locations}
       style={styles.fill}
     >
       <SafeAreaView style={styles.fill}>

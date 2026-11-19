@@ -4,8 +4,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const vm = require('node:vm');
 
-async function loadApp(fetchImpl) {
-  const context = vm.createContext({ fetch: fetchImpl, URL, FormData, AbortController, setTimeout, clearTimeout, process: { env: {} } });
+async function loadApp(fetchImpl, env = {}) {
+  const context = vm.createContext({ fetch: fetchImpl, URL, FormData, AbortController, setTimeout, clearTimeout, process: { env } });
   const cache = new Map();
   const root = path.resolve(__dirname, '../src');
   async function load(filename) {
@@ -32,19 +32,19 @@ function response(body, status = 200) {
   return { status, ok: status >= 200 && status < 300, headers: new Headers(), text: async () => JSON.stringify(body) };
 }
 
-test('the chosen version reaches real catalog, login and attempt requests', async () => {
+test('the fixed production contract reaches requests regardless of obsolete version overrides', async () => {
   const calls = [];
-  const load = await loadApp(async (url, options) => { calls.push({ url, options }); return response({}); });
+  const load = await loadApp(async (url, options) => { calls.push({ url, options }); return response({}); }, { EXPO_PUBLIC_API_VERSION: '2' });
   const client = await load('services/apiClient.js');
   const versions = await load('services/apiVersion.js');
   await client.apiGet('quizzes');
-  versions.setSelectedApiVersion('2');
   await client.apiPost('auth/login', { email: 'test@example.test', password: 'example' }, { skipAuth: true });
   await client.apiPost('quizzes/1/attempts', { answers: [] });
-  assert.deepEqual(calls.map((call) => call.options.headers['X-API-Version']), ['1', '2', '2']);
+  assert.deepEqual(calls.map((call) => call.options.headers['X-API-Version']), ['1', '1', '1']);
   assert.equal(calls[0].options.headers.Authorization, 'Bearer test-jwt');
   assert.equal(calls[1].options.headers.Authorization, undefined);
-  assert.throws(() => versions.setSelectedApiVersion('3'));
+  assert.equal(versions.getApiVersion(), '1');
+  assert.equal(versions.setSelectedApiVersion, undefined);
 });
 
 test('both HAL question contracts are playable, paginated, and do not expose an answer key', async () => {

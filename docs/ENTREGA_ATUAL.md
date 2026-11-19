@@ -1,3 +1,5 @@
+> Registro histórico. Para o estado atual e os comandos de build, consulte [REVISAO_FINAL.md](REVISAO_FINAL.md).
+
 # AnimeQuiz — entrega atual e APK final
 Atualizado em 19/11/2026.
 
