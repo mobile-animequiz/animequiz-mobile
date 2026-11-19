@@ -39,6 +39,16 @@ A tentativa nesta revisão aprovou os checks locais e parou na consulta à API p
 
 ## Demonstração e limites
 
+### Timeout no preflight da API
+
+O preflight inicia uma leitura pública em /api/versioned/status antes de consultar /api-docs/v1 e a página de nova senha. Cada GET tem até três tentativas de 45 segundos, com pausas de 2 e 4 segundos; o orçamento total da verificação online é de 180 segundos. Timeout, falhas transitórias de conexão e HTTP 408/502/503/504 podem ser repetidos. Isso acomoda uma inicialização lenta, mas não trata indisponibilidade permanente como sucesso.
+
+Falhas de DNS e erros HTTP permanentes interrompem com o host/endpoint e a causa. A presença dos contratos continua obrigatória. Não há opção nova de ignorar as verificações para liberar o APK. A consulta de aquecimento também pode aguardar uma página HTML de inicialização antes do JSON esperado. A V1 permanece fixa no app.
+
+Se as tentativas esgotarem, abra https://animequiz-api-wst8.onrender.com/api/versioned/status e confira o estado/Logs do serviço no Render. Em planos Free, o serviço pode desligar após inatividade e demorar para iniciar novamente: https://render.com/docs/free#spinning-down-on-idle. Não foi possível confirmar o plano ou a saúde remota desta API neste ambiente.
+
+Nesta revisão, 30 testes mobile/preflight, lint e typecheck passaram (21 anteriores e 9 testes de repetição, orçamento e diagnóstico). O acesso real continua falhando por ENOTFOUND neste ambiente; o diagnóstico agora identifica /api/versioned/status e o host.
+
 Confirme a API pública atualizada, login, quiz, resultado, favoritos, reabertura e foto nos dois aparelhos. Teste também em dados móveis com o computador desligado. Google e envio real de e-mail dependem das credenciais; não foram homologados por esta execução. Persistência exige banco/volume durável no servidor.
 
 O ícone AnimeQuiz é aplicado no aplicativo compilado. Abrir pelo Expo Go continua mostrando o ícone do Expo Go. O teste de galeria no emulador não substitui o teste do APK em celular.
