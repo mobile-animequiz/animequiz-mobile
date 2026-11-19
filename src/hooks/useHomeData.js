@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { t } from '../i18n/runtime';
+import { useCallback, useMemo, useState } from 'react';
 
+import useRemoteResource from './useRemoteResource';
 import { useAuth } from '../contexts/AuthContext';
 import { useApiVersion } from '../contexts/ApiVersionContext';
 import { getLevelProgress } from '../utils/progress';
@@ -31,77 +33,22 @@ function normalizePlayer(user, profileResource) {
 }
 
 export default function useHomeData() {
-  const { user, refreshCurrentUser } = useAuth();
+  const { user } = useAuth();
   const { version } = useApiVersion();
   const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES_ID);
-  const [loadError, setLoadError] = useState(null);
-  const [profileResource, setProfileResource] = useState(null);
-  const [quizzes, setQuizzes] = useState([]);
-  const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const refreshPlayer = useCallback(async () => {
-    setIsRefreshing(true);
-    setLoadError(null);
-    try {
-      const currentUser = await refreshCurrentUser();
-      const userId = currentUser?.id ?? currentUser?.userId;
-      if (userId !== undefined && userId !== null) {
-        const profile = await getProfileByUserId(userId);
-        setProfileResource(profile);
-      }
-    } catch (error) {
-      setLoadError(error.message || 'Não foi possível carregar os dados do jogador.');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refreshCurrentUser]);
-
-  const refreshQuizzes = useCallback(async () => {
-    setIsLoadingQuizzes(true);
-    setLoadError(null);
-    try {
-      const catalog = await getQuizCatalog();
-      setQuizzes(catalog);
-    } catch (error) {
-      setLoadError(error.message || 'Não foi possível carregar os quizzes.');
-    } finally {
-      setIsLoadingQuizzes(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshQuizzes();
-    refreshPlayer();
-  }, [refreshQuizzes, refreshPlayer, version]);
-
+  const loadCatalog = useCallback(() => getQuizCatalog(), []);
+  const userId = user?.id;
+  const loadProfile = useCallback(() => userId ? getProfileByUserId(userId) : Promise.resolve(null), [userId]);
+  const catalog = useRemoteResource('catalog:' + version, loadCatalog);
+  const playerData = useRemoteResource('player:' + user?.id, loadProfile);
+  const quizzes = useMemo(() => catalog.data ?? [], [catalog.data]);
   const categories = useMemo(() => {
     const unique = new Map();
-    quizzes.forEach((quiz) => {
-      if (quiz.categoryId && quiz.categoryId !== 'other') {
-        unique.set(quiz.categoryId, { id: quiz.categoryId, label: quiz.categoryLabel });
-      }
-    });
-    return [{ id: ALL_CATEGORIES_ID, label: 'Todos' }, ...unique.values()];
+    quizzes.forEach((quiz) => { if (quiz.categoryId && quiz.categoryId !== 'other') unique.set(quiz.categoryId, { id: quiz.categoryId, label: quiz.categoryLabel }); });
+    return [{ id: ALL_CATEGORIES_ID, label: t('Todos') }, ...unique.values()];
   }, [quizzes]);
-
-  const filteredQuizzes = useMemo(() => (
-    selectedCategoryId === ALL_CATEGORIES_ID
-      ? quizzes
-      : quizzes.filter((quiz) => quiz.categoryId === selectedCategoryId)
-  ), [quizzes, selectedCategoryId]);
-
-  const player = useMemo(() => normalizePlayer(user, profileResource), [user, profileResource]);
-  return {
-    player,
-    categories,
-    selectedCategoryId,
-    selectCategory: setSelectedCategoryId,
-    quizzes: filteredQuizzes,
-    loadError,
-    isLoadingQuizzes,
-    isRefreshing,
-    refreshPlayer,
-    refreshQuizzes,
-  };
+  const filtered = selectedCategoryId === ALL_CATEGORIES_ID ? quizzes : quizzes.filter((quiz) => quiz.categoryId === selectedCategoryId);
+  return { player: normalizePlayer(user, playerData.data), categories, selectedCategoryId, selectCategory: setSelectedCategoryId,
+    quizzes: filtered, loadError: catalog.error || playerData.error, isLoadingQuizzes: catalog.loading, isRefreshing: playerData.loading,
+    refreshPlayer: playerData.refresh, refreshQuizzes: catalog.refresh };
 }

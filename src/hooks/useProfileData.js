@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { t } from '../i18n/runtime';
+import { useCallback, useMemo } from 'react';
 
+import useRemoteResource from './useRemoteResource';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfileByUserId } from '../services/profileService';
 import { getLevelProgress } from '../utils/progress';
@@ -38,38 +40,12 @@ function normalizeProfile(user, profile) {
 }
 
 export default function useProfileData() {
-  const { user, refreshCurrentUser } = useAuth();
-  const [profileResource, setProfileResource] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const currentUser = user ?? await refreshCurrentUser();
-      const userId = currentUser?.id ?? currentUser?.userId;
-      if (userId === undefined || userId === null) {
-        throw new Error('A API não retornou o identificador do usuário.');
-      }
-      const result = await getProfileByUserId(userId);
-      setProfileResource(result);
-    } catch (loadError) {
-      setError(loadError.message || 'Não foi possível carregar o perfil.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, refreshCurrentUser]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const profile = useMemo(() => normalizeProfile(user, profileResource), [user, profileResource]);
-  const progress = useMemo(() => getLevelProgress(profile), [profile]);
-  const hitRate = profile.totalAnswers === 0
-    ? 0
-    : Math.round((profile.correctAnswers / profile.totalAnswers) * 100);
-
-  return { profile, progress, hitRate, isLoading, error, refresh };
+  const { user } = useAuth();
+  const userId = user?.id;
+  const load = useCallback(() => userId ? getProfileByUserId(userId) : Promise.reject(new Error(t('A API não retornou o identificador do usuário.'))), [userId]);
+  const resource = useRemoteResource(user?.id, load);
+  const profile = useMemo(() => normalizeProfile(user, resource.data), [user, resource.data]);
+  const progress = getLevelProgress(profile);
+  const hitRate = profile.totalAnswers === 0 ? 0 : Math.round(profile.correctAnswers / profile.totalAnswers * 100);
+  return { profile, progress, hitRate, isLoading: resource.loading, error: resource.error, refresh: resource.refresh };
 }

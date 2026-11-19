@@ -1,7 +1,9 @@
+import useI18n from '../hooks/useI18n';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import Icon from './Icon';
 import { colors, metrics, textStyles } from '../styles/theme';
+import { useAccount } from '../contexts/AccountContext';
 
 // Auto-width "Continue with ..." pill with the provider icon on the left.
 // variant="accent": periwinkle pill, white text (Google).
@@ -14,7 +16,9 @@ export default function SocialPillButton({
   isLoading = false,
   disabled = false,
 }) {
+  useI18n();
   const isLight = variant === 'light';
+  const { colors: personal } = useAccount();
   const isDisabled = disabled || isLoading;
 
   return (
@@ -27,16 +31,17 @@ export default function SocialPillButton({
       style={({ pressed }) => [
         styles.pill,
         isLight ? styles.pillLight : styles.pillAccent,
+        !isLight && { backgroundColor: personal.accent },
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}
     >
       {isLoading ? (
-        <ActivityIndicator color={isLight ? colors.textOnLight : colors.textPrimary} />
+        <ActivityIndicator color={colors.textOnLight} />
       ) : (
         <>
-          {icon ? <Icon name={icon} tone={isLight ? 'dark' : 'light'} /> : null}
-          <Text style={[styles.label, isLight && styles.labelDark]}>{title}</Text>
+          {icon ? <Icon name={icon} tone="dark" /> : null}
+          <Text style={[styles.label, styles.labelDark]}>{title}</Text>
         </>
       )}
     </Pressable>

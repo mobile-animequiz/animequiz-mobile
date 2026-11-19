@@ -1,20 +1,25 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { colors, metrics, textStyles } from '../styles/theme';
+import AccountAvatar from './AccountAvatar';
+import { useAccount } from '../contexts/AccountContext';
 
 // Top of the Home screen: personalized greeting + avatar placeholder (initial of the name).
 export default function HomeHeader({ name }) {
+  useI18n();
   const router = useRouter();
-  const initial = name.trim().charAt(0).toUpperCase();
+  const { settings } = useAccount();
+  const displayName = settings.displayName || name;
 
   return (
     <View style={styles.container}>
       <View style={styles.texts}>
-        <Text style={styles.greeting} numberOfLines={1}>
-          Olá, {name}!
+        <Text style={styles.greeting} numberOfLines={1}> {t("Olá,")} {displayName}!
         </Text>
-        <Text style={styles.subtitle}>Pronto para o próximo quiz?</Text>
+        <Text style={styles.subtitle}>{t("Pronto para o próximo quiz?")}</Text>
       </View>
 
       <Pressable
@@ -22,10 +27,10 @@ export default function HomeHeader({ name }) {
         style={styles.avatar}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Abrir perfil do jogador"
+        accessibilityLabel={t("Abrir perfil do jogador")}
         hitSlop={8}
       >
-        <Text style={styles.avatarInitial}>{initial}</Text>
+        <AccountAvatar size={48} />
       </Pressable>
     </View>
   );

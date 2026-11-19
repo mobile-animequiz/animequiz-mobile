@@ -1,10 +1,14 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { colors, metrics, textStyles } from '../styles/theme';
+import { useAccount } from '../contexts/AccountContext';
+import useI18n from '../hooks/useI18n';
 
 // Horizontal carousel of filter tags. The selected one uses the accent pill of the prototype,
 // the others the translucent dark fill. The list bleeds to the screen edges while scrolling.
 export default function CategoryChips({ categories, selectedId, onSelect }) {
+  const { colors: personal } = useAccount();
+  const { t } = useI18n();
   return (
     <ScrollView
       horizontal
@@ -22,13 +26,14 @@ export default function CategoryChips({ categories, selectedId, onSelect }) {
             style={({ pressed }) => [
               styles.chip,
               isSelected ? styles.chipSelected : styles.chipIdle,
+              isSelected && { backgroundColor: personal.accent, borderColor: personal.accent },
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel={category.label}
+            accessibilityLabel={t(category.label)}
             accessibilityState={{ selected: isSelected }}
           >
-            <Text style={[styles.label, isSelected && styles.labelSelected]}>{category.label}</Text>
+            <Text style={[styles.label, isSelected && { color: colors.textOnLight }]}>{t(category.label)}</Text>
           </Pressable>
         );
       })}

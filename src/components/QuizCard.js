@@ -1,81 +1,30 @@
-import { StyleSheet, Text, View } from 'react-native';
-
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import PlayButton from './PlayButton';
-import { colors, metrics, textStyles } from '../styles/theme';
-import { formatQuestionCount } from '../utils/formatters';
-
-const DIFFICULTY = {
-  easy: { label: 'Fácil', color: colors.difficultyEasy },
-  medium: { label: 'Médio', color: colors.difficultyMedium },
-  hard: { label: 'Difícil', color: colors.difficultyHard },
-};
-
-// Quiz row: category tag, title, question count + difficulty, and the JOGAR button.
+import { useAccount } from '../contexts/AccountContext';
+import useI18n from '../hooks/useI18n';
+import { metrics, textStyles } from '../styles/theme';
 export default function QuizCard({ quiz, onPlay }) {
-  const difficulty = DIFFICULTY[quiz.difficulty] ?? DIFFICULTY.medium;
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.body}>
-        <Text style={styles.category}>{quiz.categoryLabel}</Text>
-        <Text style={styles.title} numberOfLines={2}>
-          {quiz.title}
-        </Text>
-
-        <View style={styles.meta}>
-          <Text style={textStyles.caption}>{formatQuestionCount(quiz.questionCount)}</Text>
-          <View style={styles.separator} />
-          <View style={[styles.difficultyDot, { backgroundColor: difficulty.color }]} />
-          <Text style={[textStyles.caption, { color: difficulty.color }]}>{difficulty.label}</Text>
-        </View>
-      </View>
-
-      <PlayButton onPress={() => onPlay(quiz)} accessibilityLabel={`JOGAR ${quiz.title}`} />
+  const { t } = useI18n();
+  const { colors, favorites, favoritesBusy, toggleFavorite, loading, error } = useAccount();
+  const favorite = favorites.some((item) => String(item.id) === String(quiz.id));
+  const busy = favoritesBusy.includes(String(quiz.id));
+  const difficulty = { easy: t("Fácil"), medium: t("Médio"), hard: t("Difícil") }[quiz.difficulty] ?? t("Médio");
+  async function toggle() { try { await toggleFavorite(quiz); } catch (error) { Alert.alert(t('saveFailed'), error.message); } }
+  return <View style={[styles.card, { borderColor: colors.surfaceBorder, backgroundColor: colors.fieldFill }]}>
+    <View style={{ flex: 1, gap: 6 }}>
+      <Text style={[textStyles.caption, { color: colors.accent }]}>{quiz.categoryLabel}</Text>
+      <Text style={textStyles.heading}>{quiz.title}</Text>
+      <Text style={textStyles.caption}>{t('questionCount', { count: quiz.questionCount })} · {t(difficulty)}</Text>
+      <Pressable onPress={toggle} disabled={busy || loading || Boolean(error)} accessibilityRole="button"
+        accessibilityLabel={t(favorite ? t("unfavorite") : t("favorite"), { title: quiz.title })} accessibilityState={{ selected: favorite, busy }}
+        style={styles.favorite}>
+        {busy ? <ActivityIndicator color={colors.accent} /> : <Text style={[textStyles.body, { color: colors.accent }]}>{favorite ? '♥ ' : '♡ '}{t(favorite ? 'saved' : 'save')}</Text>}
+      </Pressable>
     </View>
-  );
+    <PlayButton onPress={() => onPlay(quiz)} accessibilityLabel={t('playQuiz', { title: quiz.title })} />
+  </View>;
 }
-
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: metrics.cardGap,
-    padding: metrics.cardPadding,
-    borderRadius: metrics.cardRadius,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    backgroundColor: colors.fieldFill,
-  },
-  body: {
-    flex: 1,
-  },
-  category: {
-    ...textStyles.caption,
-    color: colors.accent,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  title: {
-    ...textStyles.heading,
-    marginTop: 2,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  separator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    marginHorizontal: 8,
-    backgroundColor: colors.textSecondary,
-  },
-  difficultyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 5,
-  },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: metrics.cardPadding, borderRadius: metrics.cardRadius, borderWidth: 1 },
+  favorite: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingRight: 12 },
 });
