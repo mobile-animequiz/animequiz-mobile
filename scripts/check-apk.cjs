@@ -59,7 +59,12 @@ async function main() {
   const icon = checkPng(manifest.icon, 'Ícone');
   assert(icon.width === icon.height && icon.width >= 1024, 'Ícone deve ser quadrado e ter pelo menos 1024 px.');
   checkPng(manifest.android.adaptiveIcon.foregroundImage, 'Ícone adaptativo');
-  checkPng(manifest.android.adaptiveIcon.backgroundImage, 'Fundo adaptativo');
+  if (manifest.android.adaptiveIcon.backgroundImage) {
+    checkPng(manifest.android.adaptiveIcon.backgroundImage, 'Fundo adaptativo');
+  } else {
+    assert(/^#[0-9a-f]{6}$/i.test(manifest.android.adaptiveIcon.backgroundColor ?? ''),
+      'Ícone adaptativo precisa de uma imagem de fundo ou cor hexadecimal válida.');
+  }
   checkPng(manifest.android.adaptiveIcon.monochromeImage, 'Ícone monocromático');
   checkPng(manifest.web.favicon, 'Favicon');
   checkPng(manifest.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-splash-screen')?.[1]?.image,

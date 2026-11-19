@@ -13,7 +13,7 @@ export default function Logo() {
       resizeMode="contain"
       accessible
       accessibilityRole="image"
-      accessibilityLabel="Anime Quiz"
+      accessibilityLabel="AnimeQuiz"
     />
   );
 }
@@ -22,5 +22,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 153.5,
     height: 289.3,
+    tintColor: '#FFFFFF',
   },
 });
