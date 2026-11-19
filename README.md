@@ -1,6 +1,6 @@
-# Revisão 1.1.0 em desenvolvimento
+# AnimeQuiz 1.1.0 — revisão atual
 
-Consulte [a entrega atual](docs/ENTREGA_ATUAL.md) para recursos, configurações, testes, bloqueios e APK final. Nesta revisão, execute npm run setup:next antes de npm ci: o lockfile das novas dependências precisa ser atualizado em um ambiente com acesso ao npm. O APK final ainda não foi gerado.
+[Guia para o APK e estado real da entrega](docs/REVISAO_FINAL.md). Lockfile atualizado, 17 testes e lint completo aprovados. Visual original restaurado e seletor de API removido. Ainda falta o build assinado e a validação física.
 
 # AnimeQuiz Mobile
 
