@@ -11,6 +11,8 @@ async function loadApp(fetchImpl, env = {}) {
   async function load(filename) {
     if (cache.has(filename)) return cache.get(filename);
     const pending = (async () => {
+    if (filename === 'react-native') return new vm.SyntheticModule(['Platform'], function () { this.setExport('Platform', { OS: 'android' }); }, { context });
+    if (filename === 'expo-file-system') return new vm.SyntheticModule(['File'], function () { this.setExport('File', class File {}); }, { context });
     const code = filename.endsWith('authStorage.js')
       ? 'export async function getAccessToken() { return "test-jwt"; } export async function saveAccessToken() {} export async function clearAccessToken() {}'
       : await fs.readFile(filename, 'utf8');
@@ -22,7 +24,7 @@ async function loadApp(fetchImpl, env = {}) {
   }
   return async (relative) => {
     const module = await load(path.join(root, relative));
-    if (module.status === 'unlinked') await module.link((specifier, ref) => load(path.resolve(path.dirname(ref.identifier), `${specifier}.js`)));
+    if (module.status === 'unlinked') await module.link((specifier, ref) => load(['react-native', 'expo-file-system'].includes(specifier) ? specifier : path.resolve(path.dirname(ref.identifier), `${specifier}.js`)));
     if (module.status === 'linked') await module.evaluate();
     return module.namespace;
   };

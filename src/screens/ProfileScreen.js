@@ -45,7 +45,7 @@ export default function ProfileScreen() {
       const resized = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
       const updated = await account.uploadPhoto(resized);
       if (updated) setMessage(t('profileSaved'));
-    } catch (failure) { Alert.alert(t('saveFailed'), failure.name === 'ApiError' || failure.name === 'ApiConnectionError' ? failure.message : t('photoFailed')); }
+    } catch (failure) { Alert.alert(t('saveFailed'), ['ApiError', 'ApiConnectionError', 'AvatarValidationError'].includes(failure.name) ? failure.message : t('photoFailed')); }
     finally { setPhotoBusy(false); }
   }
   async function removePhoto() {
