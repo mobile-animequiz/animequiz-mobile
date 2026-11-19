@@ -10,8 +10,12 @@
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_VERSION": "2" }
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_VERSION": "2"
+      }
     },
     "current": {
       "extends": "preview",
@@ -22,6 +26,11 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "final": {
+      "extends": "current",
+      "autoIncrement": true,
+      "environment": "preview"
     }
   },
   "submit": {
