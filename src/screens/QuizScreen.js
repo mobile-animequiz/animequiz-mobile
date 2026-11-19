@@ -1,60 +1,57 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
+import AnimatedEntrance from '../components/AnimatedEntrance';
+import AnimatedProgress from '../components/AnimatedProgress';
+import useRemoteResource from '../hooks/useRemoteResource';
 import QuestionImage from '../components/QuestionImage';
 import ScreenContainer from '../components/ScreenContainer';
 import { useApiVersion } from '../contexts/ApiVersionContext';
+import { useAccount } from '../contexts/AccountContext';
 import { colors, metrics, textStyles } from '../styles/theme';
 import { getQuizById, getQuizQuestions } from '../services/quizService';
 import { submitQuizAttempt } from '../services/attemptService';
 import { remainingSeconds, createAttemptKey } from '../utils/quizRound';
 
-const TILES = [
-  { color: '#A9344D', shape: '▲' }, { color: '#2051A1', shape: '◆' },
-  { color: '#765B07', shape: '●' }, { color: '#1D725D', shape: '■' },
-];
+const TILES = [{ color: '#A9344D', shape: '▲' }, { color: '#2051A1', shape: '◆' }, { color: '#765B07', shape: '●' }, { color: '#1D725D', shape: '■' }];
 
 export default function QuizScreen() {
-  const router = useRouter();
   const { quizId, timed } = useLocalSearchParams();
   const { version } = useApiVersion();
   const requestedQuizId = Array.isArray(quizId) ? quizId[0] : quizId;
   const isTimed = timed === 'true';
+  return <QuizRound key={requestedQuizId + ':' + isTimed + ':' + version} requestedQuizId={requestedQuizId} isTimed={isTimed} version={version} />;
+}
+function QuizRound({ requestedQuizId, isTimed, version }) {
+  useI18n();
+  const router = useRouter();
   const scrollRef = useRef(null);
   const submittingRef = useRef(false);
   const lockedRef = useRef(false);
   const advancingRef = useRef(false);
   const deadlineRef = useRef(0);
   const attemptKeyRef = useRef(null);
-  if (!attemptKeyRef.current) attemptKeyRef.current = createAttemptKey();
+  if (attemptKeyRef.current == null) attemptKeyRef.current = createAttemptKey();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(30);
   const [submittedAnswers, setSubmittedAnswers] = useState([]);
-  const [quiz, setQuiz] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [isLoadingQuiz, setIsLoadingQuiz] = useState(true);
-  const [quizError, setQuizError] = useState(null);
   const [isSubmittingAttempt, setIsSubmittingAttempt] = useState(false);
-  const [retryLoad, setRetryLoad] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    setIsLoadingQuiz(true);
-    setQuizError(null);
-    Promise.all([getQuizById(requestedQuizId), getQuizQuestions(requestedQuizId)])
-      .then(([resource, items]) => {
-        if (!resource || !items.length) throw new Error('Este quiz ainda não possui perguntas disponíveis.');
-        if (active) { setQuiz(resource); setQuestions(items); }
-      })
-      .catch((error) => { if (active) setQuizError(error.message || 'Não foi possível carregar o quiz.'); })
-      .finally(() => { if (active) setIsLoadingQuiz(false); });
-    return () => { active = false; };
-  }, [requestedQuizId, retryLoad]);
-
+  const load = useCallback(async () => {
+    const [quiz, questions] = await Promise.all([getQuizById(requestedQuizId), getQuizQuestions(requestedQuizId)]);
+    if (!quiz || !questions.length) throw new Error(t('Este quiz ainda não possui perguntas disponíveis.'));
+    return { quiz, questions };
+  }, [requestedQuizId]);
+  const remote = useRemoteResource(requestedQuizId + ':' + version, load);
+  const quiz = remote.data?.quiz;
+  const questions = remote.data?.questions ?? [];
+  const isLoadingQuiz = remote.loading;
+  const quizError = remote.error;
   const question = questions[questionIndex];
   const total = questions.length;
   const lastQuestion = questionIndex === total - 1;
@@ -81,9 +78,9 @@ export default function QuizScreen() {
 
   const confirmExit = useCallback(() => {
     if (submittingRef.current) return;
-    Alert.alert('Sair do quiz?', 'O progresso desta partida será perdido.', [
-      { text: 'Continuar jogando', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => router.replace('/home') },
+    Alert.alert(t("Sair do quiz?"), t("O progresso desta partida será perdido."), [
+      { text: t("Continuar jogando"), style: 'cancel' },
+      { text: t("Sair"), style: 'destructive', onPress: () => router.replace('/home') },
     ]);
   }, [router]);
 
@@ -118,8 +115,8 @@ export default function QuizScreen() {
       return;
     }
     if (!submittedAnswers.length) {
-      Alert.alert('Nenhuma resposta enviada', 'O tempo acabou em todas as perguntas. Esta partida não gerou pontuação no servidor.', [
-        { text: 'Voltar ao início', onPress: () => router.replace('/home') }, { text: 'Recomeçar', onPress: restart },
+      Alert.alert(t("Nenhuma resposta enviada"), t("O tempo acabou em todas as perguntas. Esta partida não gerou pontuação no servidor."), [
+        { text: t("Voltar ao início"), onPress: () => router.replace('/home') }, { text: t("Recomeçar"), onPress: restart },
       ]);
       return;
     }
@@ -129,7 +126,7 @@ export default function QuizScreen() {
       const result = await submitQuizAttempt(quiz.id, submittedAnswers, attemptKeyRef.current);
       router.replace({ pathname: '/result', params: { result: JSON.stringify(result) } });
     } catch (error) {
-      Alert.alert('Não foi possível enviar', `${error.message} Tente novamente: a mesma chave evita duplicar esta tentativa.`);
+      Alert.alert(t("Não foi possível enviar"), t('retryAttempt', { message: error.message }));
     } finally {
       submittingRef.current = false; setIsSubmittingAttempt(false);
     }
@@ -137,48 +134,48 @@ export default function QuizScreen() {
 
   if (isLoadingQuiz) return <ScreenContainer><View style={styles.center}><ActivityIndicator color={colors.accent} /><Text style={textStyles.body}>Preparando a partida…</Text></View></ScreenContainer>;
   if (quizError || !quiz || !question) return <ScreenContainer><View style={styles.center}>
-    <Text style={textStyles.title}>Quiz indisponível</Text><Text style={textStyles.body}>{quizError || 'Não há perguntas disponíveis.'}</Text>
-    <ActionButton label="Tentar novamente" onPress={() => setRetryLoad((value) => value + 1)} />
-    <ActionButton label="Voltar ao início" onPress={() => router.replace('/home')} />
+    <Text style={textStyles.title}>{t("Quiz indisponível")}</Text><Text style={textStyles.body}>{quizError || t("Não há perguntas disponíveis.")}</Text>
+    <ActionButton label={t("Tentar novamente")} onPress={remote.refresh} />
+    <ActionButton label={t("Voltar ao início")} onPress={() => router.replace('/home')} />
   </View></ScreenContainer>;
 
-  const label = isSubmittingAttempt ? 'Enviando resultado…' : !isConfirmed ? 'Confirmar resposta' : lastQuestion ? 'Ver resultado' : 'Próxima pergunta';
+  const label = isSubmittingAttempt ? 'Enviando resultado…' : !isConfirmed ? t("Confirmar resposta") : lastQuestion ? t("Ver resultado") : t("Próxima pergunta");
   return <>
     <Stack.Screen options={{ gestureEnabled: false }} />
     <ScreenContainer scrollable={false} padded={false}>
       <View style={styles.header}>
-        <Pressable onPress={confirmExit} disabled={isSubmittingAttempt} accessibilityRole="button" accessibilityLabel="Sair do quiz" style={styles.close}><Text style={styles.closeLabel}>×</Text></Pressable>
-        <View style={styles.heading}><Text style={styles.eyebrow}>API V{version} · {quiz.categoryLabel}</Text><Text style={styles.counter}>Pergunta {questionIndex + 1} de {total}</Text></View>
-        {isTimed ? <View style={[styles.timer, secondsLeft <= 5 && styles.timerWarning]} accessibilityLabel={`${secondsLeft} segundos restantes`}>
-          <Text style={styles.timerNumber}>{secondsLeft}</Text><Text style={styles.timerUnit}>seg</Text>
-        </View> : <Text style={styles.untimed}>Sem tempo</Text>}
+        <Pressable onPress={confirmExit} disabled={isSubmittingAttempt} accessibilityRole="button" accessibilityLabel={t("Sair do quiz")} style={styles.close}><Text style={styles.closeLabel}>×</Text></Pressable>
+        <View style={styles.heading}><Text style={styles.eyebrow}>API V{version} · {quiz.categoryLabel}</Text><Text style={styles.counter}>{t("Pergunta")} {questionIndex + 1} {t("de")} {total}</Text></View>
+        {isTimed ? <View style={[styles.timer, secondsLeft <= 5 && styles.timerWarning]} accessibilityLabel={t('secondsRemaining', { count: secondsLeft })}>
+          <Text style={styles.timerNumber}>{secondsLeft}</Text><Text style={styles.timerUnit}>{t("seg")}</Text>
+        </View> : <Text style={styles.untimed}>{t("Sem tempo")}</Text>}
       </View>
-      <View style={styles.track} accessibilityRole="progressbar" accessibilityLabel="Progresso da partida" accessibilityValue={{ min: 0, max: total, now: questionIndex + 1 }}>
-        <View style={[styles.fill, { width: `${((questionIndex + 1) / total) * 100}%` }]} />
-      </View>
+      <View style={{ marginHorizontal: metrics.homePaddingX }}><AnimatedProgress value={(questionIndex + 1) / total} label={t('Progresso da partida')} height={5} /></View>
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AnimatedEntrance key={question.id}>
         <QuestionImage key={`${question.id}-${question.imageUrl}`} uri={question.imageUrl} description={question.imageAltText} />
         <Text style={styles.question} accessibilityRole="header">{question.text}</Text>
-        <Text style={styles.hint}>{isConfirmed ? 'Sua escolha foi encerrada' : 'Escolha uma alternativa'}</Text>
+        <Text style={styles.hint}>{isConfirmed ? t("Sua escolha foi encerrada") : t("Escolha uma alternativa")}</Text>
         <View style={styles.options} accessibilityRole="radiogroup">
           {question.options.map((option, index) => {
             const tile = TILES[index % TILES.length];
             const selected = index === selectedIndex;
             return <Pressable key={option.id} disabled={isConfirmed} onPress={() => { if (!lockedRef.current) setSelectedIndex(index); }}
-              accessibilityRole="radio" accessibilityLabel={`${String.fromCharCode(65 + index)}. ${option.text}`} accessibilityState={{ selected, disabled: isConfirmed }}
+              accessibilityRole="radio" accessibilityLabel={`${String.fromCharCode(65 + index)}. ${option.text}`} accessibilityState={{ checked: selected, disabled: isConfirmed }}
               style={({ pressed }) => [styles.tile, { backgroundColor: tile.color }, selected && styles.selected, isConfirmed && !selected && styles.dimmed, pressed && styles.pressed]}>
               <View style={styles.tileTop}><Text style={styles.shape}>{tile.shape}</Text><Text style={styles.letter}>{String.fromCharCode(65 + index)}</Text></View>
               <Text style={styles.optionText}>{option.text}</Text>
-              {selected ? <Text style={styles.selection}>{isConfirmed ? 'Confirmada' : 'Selecionada'}</Text> : null}
+              {selected ? <Text style={styles.selection}>{isConfirmed ? t('Confirmada') : t('Selecionada')}</Text> : null}
             </Pressable>;
           })}
         </View>
         {isConfirmed ? <View style={styles.feedback} accessibilityLiveRegion="polite">
-          <Text style={styles.feedbackTitle}>{timedOut ? 'O tempo acabou' : 'Resposta confirmada'}</Text>
-          <Text style={styles.feedbackBody}>{timedOut ? 'Esta pergunta ficará sem resposta. Continue para a próxima etapa.' : 'Seu resultado será corrigido pela API ao terminar a partida.'}</Text>
+          <Text style={styles.feedbackTitle}>{timedOut ? t("O tempo acabou") : t("Resposta confirmada")}</Text>
+          <Text style={styles.feedbackBody}>{timedOut ? t("Esta pergunta ficará sem resposta. Continue para a próxima etapa.") : t("Seu resultado será corrigido pela API ao terminar a partida.")}</Text>
         </View> : null}
+      </AnimatedEntrance>
       </ScrollView>
-      <View style={styles.footer}><Text style={styles.footerHint}>{submittedAnswers.length} de {total} respostas confirmadas</Text>
+      <View style={styles.footer}><Text style={styles.footerHint}>{submittedAnswers.length} {t("de")} {total} {t("respostas confirmadas")}</Text>
         <ActionButton label={label} disabled={(!isConfirmed && selectedIndex === null) || isSubmittingAttempt} onPress={isConfirmed ? handleNext : handleConfirm} />
       </View>
     </ScreenContainer>
@@ -186,7 +183,8 @@ export default function QuizScreen() {
 }
 
 function ActionButton({ label, onPress, disabled = false }) {
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} style={({ pressed }) => [styles.action, disabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.actionLabel}>{label}</Text></Pressable>;
+  const { colors: personal } = useAccount();
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} style={({ pressed }) => [styles.action, { backgroundColor: personal.accent }, disabled && styles.disabled, pressed && styles.pressed]}><Text style={[styles.actionLabel, { color: personal.textOnLight }]}>{label}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({

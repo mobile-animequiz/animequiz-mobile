@@ -1,17 +1,22 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, metrics, textStyles } from '../styles/theme';
+import { useAccount } from '../contexts/AccountContext';
 
 // "JOGAR" call to action: accent pill, same fill and white label as the prototype's main pill.
 export default function PlayButton({ onPress, accessibilityLabel }) {
+  useI18n();
+  const { colors: personal } = useAccount();
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.button, { backgroundColor: personal.accent }, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? 'JOGAR'}
+      accessibilityLabel={accessibilityLabel ?? t("JOGAR")}
     >
-      <Text style={styles.label}>JOGAR</Text>
+      <Text style={[styles.label, { color: colors.textOnLight }]}>{t("JOGAR")}</Text>
     </Pressable>
   );
 }

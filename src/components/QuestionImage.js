@@ -1,3 +1,5 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
@@ -5,12 +7,13 @@ import { colors } from '../styles/theme';
 
 // The caller keys by question ID so loading/error state resets for each image.
 export default function QuestionImage({ uri, description }) {
+  useI18n();
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   if (!uri) return null;
   return (
     <View style={styles.frame}>
-      {failed ? <Text style={styles.fallback}>Imagem indisponível. Você pode continuar respondendo.</Text> : (
+      {failed ? <Text style={styles.fallback}>{t("Imagem indisponível. Você pode continuar respondendo.")}</Text> : (
         <Image source={{ uri }} style={styles.image} resizeMode="contain" accessibilityLabel={description}
           onLoadEnd={() => setLoading(false)} onError={() => { setFailed(true); setLoading(false); }} />
       )}

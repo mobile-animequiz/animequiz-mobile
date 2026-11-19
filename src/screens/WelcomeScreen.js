@@ -1,7 +1,11 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import LegalText from '../components/LegalText';
+import AppButton from '../components/AppButton';
+import { useAuth } from '../contexts/AuthContext';
 import Logo from '../components/Logo';
 import ScreenContainer from '../components/ScreenContainer';
 import SocialPillButton from '../components/SocialPillButton';
@@ -9,24 +13,23 @@ import useSocialSignIn from '../hooks/useSocialSignIn';
 import { colors, textStyles } from '../styles/theme';
 
 export default function WelcomeScreen() {
+  useI18n();
   const router = useRouter();
+  const { sessionError, retryRestore } = useAuth();
   const { loadingProvider, signIn } = useSocialSignIn();
   const isBusy = loadingProvider !== null;
 
-  // Buttons in the order of the prototype. Both read "Continue with Google" in the Figma file:
-  // the first signs in with Google; the second (white, Gmail icon) opens the email sign-up form,
-  // which is the only way to reach Create Account. Edit the titles here if the copy changes.
   const buttons = [
     {
       id: 'google',
-      title: 'Continue with Google',
+      title: t("Continue with Google"),
       icon: 'google',
       variant: 'accent',
       onPress: () => signIn('google'),
     },
     {
       id: 'email',
-      title: 'Continue with Google',
+      title: t('createEmail'),
       icon: 'gmail',
       variant: 'light',
       onPress: () => router.push('/create-account'),
@@ -40,8 +43,9 @@ export default function WelcomeScreen() {
 
         <View style={styles.group}>
           <Logo />
+          {sessionError ? <View style={{ gap: 12, marginVertical: 16 }}><Text style={textStyles.error}>{sessionError}</Text><AppButton title={t('Tentar novamente')} onPress={retryRestore} /></View> : null}
 
-          <Text style={styles.slogan}>Ready to test your anime knowledge?</Text>
+          <Text style={styles.slogan}>{t("Ready to test your anime knowledge?")}</Text>
 
           <View style={styles.legal}>
             <LegalText />
@@ -61,15 +65,12 @@ export default function WelcomeScreen() {
             ))}
           </View>
 
-          <Text style={styles.footerText}>
-            Already have an account?{' '}
+          <Text style={styles.footerText}> {t("Already have an account?")}{' '}
             <Text
               style={styles.footerLink}
               accessibilityRole="link"
               onPress={() => router.push('/login')}
-            >
-              Log in
-            </Text>
+            > {t("Log in")} </Text>
           </Text>
         </View>
 

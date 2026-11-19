@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { apiGet } from '../services/apiClient';
@@ -28,7 +29,7 @@ export function ApiVersionProvider({ children }) {
       }
       setSelectedApiVersion(nextVersion);
       setVersion(nextVersion);
-      setConnection(`API V${nextVersion} conectada`);
+      setConnection(t('apiConnected', { version: nextVersion }));
     } catch (requestError) {
       setError(requestError.message || 'Não foi possível verificar a API.');
     } finally {

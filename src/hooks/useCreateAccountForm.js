@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { useState } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -37,13 +38,13 @@ export default function useCreateAccountForm({ onSuccess } = {}) {
     const nextErrors = {};
 
     if (!isValidBirthDate(birthDate)) {
-      nextErrors.birthDate = 'Enter a valid date (DD/MM/YYYY).';
+      nextErrors.birthDate = t("Enter a valid date (DD/MM/YYYY).");
     }
     if (!isValidEmail(email)) {
-      nextErrors.email = 'Enter a valid email address.';
+      nextErrors.email = t("Enter a valid email address.");
     }
     if (!isValidPassword(password)) {
-      nextErrors.password = `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
+      nextErrors.password = t('passwordMin', { count: PASSWORD_MIN_LENGTH });
     }
 
     setErrors(nextErrors);
@@ -60,7 +61,7 @@ export default function useCreateAccountForm({ onSuccess } = {}) {
       await signUp({ birthDate, email: email.trim(), password });
       onSuccess?.();
     } catch (error) {
-      setErrors({ form: error.message || 'Could not create the account. Please try again.' });
+      setErrors({ form: error.message || t("Could not create the account. Please try again.") });
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { useState } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -30,10 +31,10 @@ export default function useLoginForm({ onSuccess } = {}) {
     const nextErrors = {};
 
     if (!isValidEmail(email)) {
-      nextErrors.email = 'Enter a valid email address.';
+      nextErrors.email = t("Enter a valid email address.");
     }
     if (!password) {
-      nextErrors.password = 'Enter your password.';
+      nextErrors.password = t("Enter your password.");
     }
 
     setErrors(nextErrors);
@@ -50,7 +51,7 @@ export default function useLoginForm({ onSuccess } = {}) {
       await signIn({ email: email.trim(), password });
       onSuccess?.();
     } catch (error) {
-      setErrors({ form: error.message || 'Could not log in. Please try again.' });
+      setErrors({ form: error.message || t("Could not log in. Please try again.") });
     } finally {
       setIsLoading(false);
     }

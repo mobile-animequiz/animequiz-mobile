@@ -1,44 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
-
-const FADE_IN_DURATION_MS = 800;
-
-// Fades / scales the splash logo in, keeps it on screen for `holdDuration`
-// and then calls `onFinish` (used to navigate to the Welcome screen).
+import useReducedMotion from './useReducedMotion';
 export default function useSplashAnimation({ onFinish, holdDuration = 1500 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.92)).current;
-
-  // Keeps the latest callback without restarting the animation on re-renders.
+  const [opacity] = useState(() => new Animated.Value(1));
+  const [scale] = useState(() => new Animated.Value(1));
+  const reduced = useReducedMotion();
   const onFinishRef = useRef(onFinish);
+  useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
   useEffect(() => {
-    onFinishRef.current = onFinish;
-  }, [onFinish]);
-
-  useEffect(() => {
+    if (reduced) { opacity.setValue(1); scale.setValue(1); }
+    else { opacity.setValue(0); scale.setValue(0.96); }
     const intro = Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: FADE_IN_DURATION_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: FADE_IN_DURATION_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]);
-    intro.start();
-
-    const timeoutId = setTimeout(() => onFinishRef.current?.(), FADE_IN_DURATION_MS + holdDuration);
-
-    return () => {
-      intro.stop();
-      clearTimeout(timeoutId);
-    };
-  }, [opacity, scale, holdDuration]);
-
+    if (!reduced) intro.start();
+    const timer = setTimeout(() => onFinishRef.current?.(), holdDuration + (reduced ? 0 : 300));
+    return () => { intro.stop(); clearTimeout(timer); };
+  }, [opacity, scale, reduced, holdDuration]);
   return { opacity, scale };
 }

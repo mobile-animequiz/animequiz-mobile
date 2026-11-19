@@ -2,18 +2,20 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { backgroundGradient, metrics } from '../styles/theme';
+import { metrics } from '../styles/theme';
+import { useAccount } from '../contexts/AccountContext';
 
 // Common shell of every screen: dark gradient background, safe-area padding,
 // keyboard avoidance and (optionally) vertical scrolling.
 // `padded={false}` removes the horizontal screen padding (used by the Splash).
 export default function ScreenContainer({ children, scrollable = true, padded = true }) {
+  const { colors } = useAccount();
   const contentStyle = padded ? styles.padded : null;
 
   return (
     <LinearGradient
-      colors={backgroundGradient.colors}
-      locations={backgroundGradient.locations}
+      colors={[colors.backgroundTop, colors.backgroundBottom]}
+      locations={[0, 1]}
       style={styles.fill}
     >
       <SafeAreaView style={styles.fill}>

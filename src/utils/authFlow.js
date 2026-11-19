@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
@@ -5,12 +6,11 @@ import { router } from 'expo-router';
 // Home and the auth screens are cleared from the history, so "back" (or the Android back
 // button) never returns to Welcome / Log In.
 export function handleAuthSuccess() {
-  if (router.canDismiss()) {
-    router.dismissAll();
-  }
+  // Stack.Protected already removes guest screens after authentication. A
+  // dismissAll here can dispatch POP_TO_TOP against the stack being removed.
   router.replace('/home');
 }
 
 export function showAuthError(message) {
-  Alert.alert('Something went wrong', message);
+  Alert.alert(t("Something went wrong"), message);
 }

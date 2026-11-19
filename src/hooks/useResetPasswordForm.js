@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { useState } from 'react';
 
 import { sendPasswordResetLink } from '../services/authService';
@@ -21,7 +22,7 @@ export default function useResetPasswordForm({ onSuccess } = {}) {
     }
 
     if (!isValidEmail(email)) {
-      setErrors({ email: 'Enter a valid email address.' });
+      setErrors({ email: t("Enter a valid email address.") });
       return;
     }
 
@@ -30,7 +31,7 @@ export default function useResetPasswordForm({ onSuccess } = {}) {
       await sendPasswordResetLink({ email: email.trim() });
       onSuccess?.(email.trim());
     } catch (error) {
-      setErrors({ form: error.message || 'Could not send the link. Please try again.' });
+      setErrors({ form: error.message || t("Could not send the link. Please try again.") });
     } finally {
       setIsLoading(false);
     }

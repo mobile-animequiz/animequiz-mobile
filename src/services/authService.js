@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime';
 import { apiPost } from './apiClient';
 import { clearAccessToken, saveAccessToken } from './authStorage';
 
@@ -20,7 +21,7 @@ function makeRandomUsername() {
 function formatDateForApi(birthDate) {
   if (!birthDate) return undefined;
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(birthDate);
-  if (!match) throw new Error('Informe uma data de nascimento válida.');
+  if (!match) throw new Error(t("Informe uma data de nascimento válida."));
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
@@ -33,10 +34,10 @@ function isUsernameCollision(error) {
 function requireAuthResponse(response) {
   const token = response?.accessToken;
   if (typeof token !== 'string' || !token.trim()) {
-    throw new Error('O servidor não retornou um token válido. Tente novamente.');
+    throw new Error(t("O servidor não retornou um token válido. Tente novamente."));
   }
   if (!response.user || response.user.id == null) {
-    throw new Error('O servidor não retornou os dados da conta. Tente novamente.');
+    throw new Error(t("O servidor não retornou os dados da conta. Tente novamente."));
   }
   return { token, user: response.user };
 }
@@ -79,17 +80,22 @@ export async function register({ birthDate, email, password }) {
       if (!isUsernameCollision(error) || attempt === MAX_USERNAME_ATTEMPTS - 1) throw error;
     }
   }
-  throw new Error('Não foi possível criar um nome de usuário. Tente novamente.');
+  throw new Error(t("Não foi possível criar um nome de usuário. Tente novamente."));
 }
 
 export async function logout() {
   await clearAccessToken();
 }
 
-export async function sendPasswordResetLink() {
-  throw new Error('A recuperação de senha ainda não está disponível na API.');
+export async function sendPasswordResetLink({ email }) {
+  return apiPost('auth/forgot-password', { email: email.trim() }, { skipAuth: true });
 }
 
 export async function signInWithProvider(provider) {
-  throw new Error(`O login com ${provider} ainda não está configurado.`);
+  if (provider !== 'google') throw new Error('Provedor não suportado.');
+  const { getGoogleIdToken } = await import('./googleSignIn');
+  const idToken = await getGoogleIdToken();
+  if (!idToken) return null;
+  const response = await apiPost('auth/google', { idToken }, { skipAuth: true });
+  return persistSession(response);
 }

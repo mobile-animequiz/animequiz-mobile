@@ -1,13 +1,17 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { useCallback, useEffect, useMemo } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import ScreenContainer from '../components/ScreenContainer';
+import AnimatedEntrance from '../components/AnimatedEntrance';
 import { colors, metrics, textStyles } from '../styles/theme';
 
 // The result is the validated response returned by POST /quizzes/{quizId}/attempts.
 // Never calculate correctness or points on the device.
 export default function ResultScreen() {
+  useI18n();
   const router = useRouter();
   const { result: resultParam } = useLocalSearchParams();
 
@@ -31,9 +35,6 @@ export default function ResultScreen() {
   }, [resultParam]);
 
   const goHome = useCallback(() => {
-    if (router.canDismiss()) {
-      router.dismissAll();
-    }
     router.replace('/home');
   }, [router]);
 
@@ -49,39 +50,36 @@ export default function ResultScreen() {
     <>
       <Stack.Screen options={{ gestureEnabled: false }} />
       <ScreenContainer>
-        <View style={styles.content}>
-          <Text style={styles.tag}>{result ? 'Quiz concluído' : 'Resultado indisponível'}</Text>
+        <AnimatedEntrance style={styles.content}>
+          <Text style={styles.tag}>{result ? t("Quiz concluído") : t("Resultado indisponível")}</Text>
           <Text style={styles.title} accessibilityRole="header">
-            {result ? `${result.points} pontos` : 'Resultado indisponível'}
+            {result ? t('points', { count: result.points }) : t("Resultado indisponível")}
           </Text>
           {result ? (
             <>
               <View style={styles.medal}><Text style={styles.medalLabel}>{Math.round((result.correctAnswers / Math.max(1, result.totalQuestions)) * 100)}%</Text></View>
               <Text style={textStyles.caption}>{result.quizTitle}</Text>
               <Text style={textStyles.body}>
-                {result.correctAnswers} de {result.totalQuestions} questões corretas
-              </Text>
+                {result.correctAnswers} {t("de")} {result.totalQuestions} {t("questões corretas")} </Text>
               <Text style={textStyles.caption}>
-                {result.answeredQuestions} {result.answeredQuestions === 1 ? 'questão respondida' : 'questões respondidas'}
+                {result.answeredQuestions} {result.answeredQuestions === 1 ? t("questão respondida") : t("questões respondidas")}
               </Text>
-              <Text style={styles.verified}>Pontuação calculada e registrada pela API</Text>
+              <Text style={styles.verified}>{t("Pontuação calculada e registrada pela API")}</Text>
             </>
           ) : (
-            <Text style={textStyles.body}>
-              Não foi possível recuperar o resultado desta tentativa.
-            </Text>
+            <Text style={textStyles.body}> {t("Não foi possível recuperar o resultado desta tentativa.")} </Text>
           )}
-        </View>
+        </AnimatedEntrance>
         <View style={styles.footer}>
           {result?.quizId ? <Pressable onPress={() => router.replace({ pathname: '/quiz', params: { quizId: String(result.quizId) } })}
-            accessibilityRole="button" style={styles.again}><Text style={styles.buttonLabel}>Jogar novamente</Text></Pressable> : null}
+            accessibilityRole="button" style={styles.again}><Text style={[styles.buttonLabel, { color: colors.accent }]}>{t("Jogar novamente")}</Text></Pressable> : null}
           <Pressable
             onPress={goHome}
             style={({ pressed }) => [styles.button, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel="Voltar ao início"
+            accessibilityLabel={t("Voltar ao início")}
           >
-            <Text style={styles.buttonLabel}>Voltar ao início</Text>
+            <Text style={styles.buttonLabel}>{t("Voltar ao início")}</Text>
           </Pressable>
         </View>
       </ScreenContainer>

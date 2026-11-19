@@ -1,3 +1,5 @@
+import useI18n from '../hooks/useI18n';
+import { t } from '../i18n/runtime';
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -16,6 +18,7 @@ import { colors, metrics, textStyles } from '../styles/theme';
 import { handleAuthSuccess } from '../utils/authFlow';
 
 export default function LoginScreen() {
+  useI18n();
   const router = useRouter();
   const goBack = useGoBack();
   const passwordInputRef = useRef(null);
@@ -26,11 +29,11 @@ export default function LoginScreen() {
 
   return (
     <ScreenContainer>
-      <ScreenHeader title="Log In" onBackPress={goBack} />
+      <ScreenHeader title={t("Log In")} onBackPress={goBack} />
 
       <View style={styles.fields}>
         <TextField
-          placeholder="Email"
+          placeholder={t("Email")}
           value={form.email}
           onChangeText={form.handleEmailChange}
           error={form.errors.email}
@@ -59,7 +62,7 @@ export default function LoginScreen() {
 
       <View style={styles.action}>
         <AppButton
-          title="Log in"
+          title={t("Log in")}
           onPress={form.handleSubmit}
           isLoading={form.isLoading}
           disabled={loadingProvider !== null}
@@ -71,16 +74,16 @@ export default function LoginScreen() {
         hitSlop={12}
         style={styles.forgotButton}
         accessibilityRole="link"
-        accessibilityLabel="Forgot Password"
+        accessibilityLabel={t("Forgot Password")}
       >
-        <Text style={styles.forgotText}>Forgot Password</Text>
+        <Text style={styles.forgotText}>{t("Forgot Password")}</Text>
       </Pressable>
 
       <View style={styles.spacer} />
 
       <View style={styles.footer}>
         <SocialPillButton
-          title="Continue with Google"
+          title={t("Continue with Google")}
           icon="google"
           onPress={() => signIn('google')}
           isLoading={loadingProvider === 'google'}

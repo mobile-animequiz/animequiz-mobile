@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors, metrics, textStyles } from '../styles/theme';
+import { useAccount } from '../contexts/AccountContext';
 
 // Rounded dark input (the placeholder acts as the label, as in the prototype) with an
 // optional element on the right (info / eye icons) and an inline error message.
@@ -16,6 +17,7 @@ export default function TextField({
   ...inputProps
 }) {
   const [isFocused, setIsFocused] = useState(false);
+  const { colors: personal } = useAccount();
 
   function handleFocus(event) {
     setIsFocused(true);
@@ -33,6 +35,7 @@ export default function TextField({
         style={[
           styles.field,
           isFocused && styles.fieldFocused,
+          isFocused && { borderColor: personal.accent },
           Boolean(error) && styles.fieldError,
         ]}
       >
@@ -40,7 +43,7 @@ export default function TextField({
           ref={inputRef}
           style={styles.input}
           placeholderTextColor={colors.textPrimary}
-          selectionColor={colors.accent}
+          selectionColor={personal.accent}
           keyboardAppearance="dark"
           accessibilityLabel={inputProps.placeholder}
           {...inputProps}

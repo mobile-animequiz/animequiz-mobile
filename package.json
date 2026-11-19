@@ -1,12 +1,16 @@
 {
   "name": "mobile-animequiz",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@react-native-google-signin/google-signin": "17.0.0",
     "expo": "~57.0.32",
     "expo-constants": "~57.0.19",
+    "expo-image-manipulator": "~57.0.22",
+    "expo-image-picker": "~57.0.21",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.10",
+    "expo-localization": "~57.0.2",
     "expo-router": "~57.0.30",
     "expo-secure-store": "~57.0.4",
     "expo-splash-screen": "~57.0.11",
@@ -15,16 +19,26 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "react-native-web": "~0.21.0"
   },
   "scripts": {
     "start": "expo start",
+    "start:clean": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node --experimental-vm-modules --test tests/*.test.cjs",
-    "build:apk": "npx eas-cli@latest build --platform android --profile preview"
+    "expo:login": "npx --yes eas-cli@latest login",
+    "expo:whoami": "npx --yes eas-cli@latest whoami",
+    "build:apk": "npx --yes eas-cli@latest build --platform android --profile preview",
+    "check:apk": "node scripts/check-apk.cjs",
+    "build:apk:current": "node scripts/check-apk.cjs --online && npx --yes eas-cli@latest build --platform android --profile current",
+    "typecheck": "tsc --noEmit",
+    "setup:next": "npm install && expo install --check",
+    "check:final": "node scripts/check-final.cjs --online",
+    "build:apk:final": "npm run lint && npm test && npm run typecheck && npm run check:final && npx --yes eas-cli@latest build --platform android --profile final"
   },
   "private": true,
   "devDependencies": {
