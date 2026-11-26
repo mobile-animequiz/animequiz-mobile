@@ -1,3 +1,5 @@
+import { useAccount } from '../contexts/AccountContext';
+import { getDisplayName } from '../utils/displayName';
 import { t } from '../i18n/runtime';
 import { useCallback, useMemo } from 'react';
 
@@ -41,10 +43,11 @@ function normalizeProfile(user, profile) {
 
 export default function useProfileData() {
   const { user } = useAuth();
+  const { settings } = useAccount();
   const userId = user?.id;
   const load = useCallback(() => userId ? getProfileByUserId(userId) : Promise.reject(new Error(t('A API não retornou o identificador do usuário.'))), [userId]);
   const resource = useRemoteResource(user?.id, load);
-  const profile = useMemo(() => normalizeProfile(user, resource.data), [user, resource.data]);
+  const profile = useMemo(() => ({ ...normalizeProfile(user, resource.data), name: getDisplayName(user, settings) || t('Jogador') }), [user, resource.data, settings]);
   const progress = getLevelProgress(profile);
   const hitRate = profile.totalAnswers === 0 ? 0 : Math.round(profile.correctAnswers / profile.totalAnswers * 100);
   return { profile, progress, hitRate, isLoading: resource.loading, error: resource.error, refresh: resource.refresh };

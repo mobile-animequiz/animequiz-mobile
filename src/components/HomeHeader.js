@@ -5,14 +5,12 @@ import { useRouter } from 'expo-router';
 
 import { colors, metrics, textStyles } from '../styles/theme';
 import AccountAvatar from './AccountAvatar';
-import { useAccount } from '../contexts/AccountContext';
 
 // Top of the Home screen: personalized greeting + avatar placeholder (initial of the name).
 export default function HomeHeader({ name }) {
   useI18n();
   const router = useRouter();
-  const { settings } = useAccount();
-  const displayName = settings.displayName || name;
+  const displayName = name;
 
   return (
     <View style={styles.container}>

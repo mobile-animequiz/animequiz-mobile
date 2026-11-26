@@ -1,7 +1,6 @@
 import useI18n from '../hooks/useI18n';
 import { t } from '../i18n/runtime';
-import { useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import CategoryChips from '../components/CategoryChips';
@@ -21,7 +20,7 @@ export default function HomeScreen() {
   useI18n();
   const router = useRouter();
 
-  const [timed, setTimed] = useState(false);
+  const timed = true;
   const { player, categories, selectedCategoryId, selectCategory, quizzes, loadError, isLoadingQuizzes, refreshPlayer, refreshQuizzes } = useHomeData();
 
   function handlePlay(quiz) {
@@ -44,7 +43,7 @@ export default function HomeScreen() {
         <Text style={[textStyles.caption, { marginTop: 12 }]}>{t('questionLanguage')}</Text>
         <View style={styles.challenge}>
           <View style={{ flex: 1, gap: 4 }}><Text style={textStyles.body}>{t("Desafio com tempo")}</Text><Text style={styles.challengeHint}>{t("Ao zerar, a pergunta fica sem resposta.")}</Text></View>
-          <Switch value={timed} onValueChange={setTimed} accessibilityLabel={t("Ativar desafio com tempo")} />
+          <Text style={textStyles.caption}>{t('difficultyTimes')}</Text>
         </View>
       </AnimatedEntrance>
 

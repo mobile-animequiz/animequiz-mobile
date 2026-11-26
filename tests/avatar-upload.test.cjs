@@ -24,10 +24,10 @@ async function app({ os = 'android', size = 12, exists = true } = {}) {
   }, { context });
   const modules = {
     './apiClient': synthetic({ apiGet() {}, apiPatch() {}, apiDelete() {}, apiPut: async (...args) => { uploads.push(args); return { hasAvatar: true }; } }),
-    './quizService': synthetic({ normalizeQuiz: value => value }),
+    './quizService': synthetic({ normalizeQuiz: value => value, getQuizCatalog: async () => [] }),
     'react-native': synthetic({ Platform: { OS: os } }),
     'expo-file-system': synthetic({ File }),
-    '../i18n/runtime': synthetic({ t: key => key }),
+    '../i18n/runtime': synthetic({ t: key => key, getLocale: () => 'pt-BR' }),
   };
   const source = await fs.readFile(path.join(__dirname, '../src/services/accountService.js'), 'utf8');
   const module = new vm.SourceTextModule(source, { context });
@@ -81,4 +81,10 @@ test('the real SDK 57 encoder rejects the old URI object and encodes the new Fil
   assert.ok(body.toString('latin1').includes('name="file"; filename="avatar.jpg"'));
   assert.ok(body.toString('latin1').includes('content-type: image/jpeg'));
   assert.equal(encoded.boundary, 'test-boundary');
+});
+
+test('an avatar keeps the initiating session header through file preparation', async () => {
+  const a=await app({os:'web'});
+  await a.service.uploadAvatar({uri:'blob:local-image'}, {headers:{Authorization:'Bearer initiating-session'}});
+  assert.equal(a.uploads[0][2].headers.Authorization,'Bearer initiating-session');
 });

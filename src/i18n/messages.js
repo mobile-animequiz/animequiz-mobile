@@ -1,3 +1,4 @@
+import { experienceMessages } from './experienceMessages';
 export const messages = {
   "Password": {
     "pt-BR": "Senha",
@@ -746,5 +747,6 @@ export const messages = {
   "photoFailed": {
     "pt-BR": "Não foi possível preparar a foto. Se o acesso foi negado, permita fotos nas configurações do celular.",
     "en": "Could not prepare the photo. If access was denied, allow photos in your phone settings."
-  }
+  },
+  ...experienceMessages,
 };
