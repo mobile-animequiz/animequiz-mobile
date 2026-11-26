@@ -11,6 +11,8 @@ async function loadApp(fetchImpl, env = {}) {
   async function load(filename) {
     if (cache.has(filename)) return cache.get(filename);
     const pending = (async () => {
+    if (filename === 'react-native') return new vm.SyntheticModule(['Platform'], function () { this.setExport('Platform', { OS: 'android' }); }, { context });
+    if (filename === 'expo-file-system') return new vm.SyntheticModule(['File'], function () { this.setExport('File', class File {}); }, { context });
     const code = filename.endsWith('authStorage.js')
       ? 'export async function getAccessToken() { return "test-jwt"; } export async function saveAccessToken() {} export async function clearAccessToken() {}'
       : await fs.readFile(filename, 'utf8');
@@ -22,7 +24,7 @@ async function loadApp(fetchImpl, env = {}) {
   }
   return async (relative) => {
     const module = await load(path.join(root, relative));
-    if (module.status === 'unlinked') await module.link((specifier, ref) => load(path.resolve(path.dirname(ref.identifier), `${specifier}.js`)));
+    if (module.status === 'unlinked') await module.link((specifier, ref) => load(['react-native', 'expo-file-system'].includes(specifier) ? specifier : path.resolve(path.dirname(ref.identifier), `${specifier}.js`)));
     if (module.status === 'linked') await module.evaluate();
     return module.namespace;
   };
@@ -34,16 +36,16 @@ function response(body, status = 200) {
 
 test('the fixed production contract reaches requests regardless of obsolete version overrides', async () => {
   const calls = [];
-  const load = await loadApp(async (url, options) => { calls.push({ url, options }); return response({}); }, { EXPO_PUBLIC_API_VERSION: '2' });
+  const load = await loadApp(async (url, options) => { calls.push({ url, options }); return response({}); }, { EXPO_PUBLIC_API_VERSION: '1' });
   const client = await load('services/apiClient.js');
   const versions = await load('services/apiVersion.js');
   await client.apiGet('quizzes');
   await client.apiPost('auth/login', { email: 'test@example.test', password: 'example' }, { skipAuth: true });
   await client.apiPost('quizzes/1/attempts', { answers: [] });
-  assert.deepEqual(calls.map((call) => call.options.headers['X-API-Version']), ['1', '1', '1']);
+  assert.deepEqual(calls.map((call) => call.options.headers['X-API-Version']), ['2', '2', '2']);
   assert.equal(calls[0].options.headers.Authorization, 'Bearer test-jwt');
   assert.equal(calls[1].options.headers.Authorization, undefined);
-  assert.equal(versions.getApiVersion(), '1');
+  assert.equal(versions.getApiVersion(), '2');
   assert.equal(versions.setSelectedApiVersion, undefined);
 });
 
@@ -133,8 +135,8 @@ test('favorites traverse real API pages and use idempotent owned routes', async 
   assert.equal(favorites.length, 2);
   await account.saveFavorite(1, true);
   await account.saveFavorite(1, false);
-  assert.deepEqual(calls.map((call) => call.options.method), ['GET', 'GET', 'PUT', 'DELETE']);
-  assert.match(calls[3].url, /users\/me\/favorites\/1$/);
+  assert.deepEqual(calls.map((call) => call.options.method), ['GET', 'GET', 'GET', 'PUT', 'DELETE']);
+  assert.match(calls[4].url, /users\/me\/favorites\/1$/);
 });
 
 test('password recovery sends the email without an existing session', async () => {
@@ -180,8 +182,64 @@ test('changing language preserves the appearance values sent to the API', async 
   const before = preferences.getAppearanceChoices('theme');
   i18n.setLocale('en');
   const after = preferences.getAppearanceChoices('theme');
-  assert.deepEqual(Array.from(before, (choice) => choice[0]), ['midnight', 'eclipse']);
-  assert.deepEqual(Array.from(after, (choice) => choice[0]), ['midnight', 'eclipse']);
+  assert.deepEqual(Array.from(before, (choice) => choice[0]), ['midnight', 'eclipse', 'ocean', 'forest']);
+  assert.deepEqual(Array.from(after, (choice) => choice[0]), ['midnight', 'eclipse', 'ocean', 'forest']);
   assert.notEqual(before[0][1], after[0][1]);
-  assert.deepEqual(Array.from(preferences.getAppearanceChoices('accent'), (choice) => choice[0]), ['violet', 'cyan', 'rose']);
+  assert.deepEqual(Array.from(preferences.getAppearanceChoices('accent'), (choice) => choice[0]), ['violet', 'cyan', 'rose', 'amber', 'mint', 'coral']);
+});
+
+test('display names prioritize custom names and hide generated registration identifiers', async () => {
+  const load = await loadApp(async () => response({}));
+  const names = await load('utils/displayName.js');
+  assert.equal(names.getDisplayName({email:'isaac@gmail.com'}), 'Isaac');
+  assert.equal(names.getDisplayName({email:'isaac.silva@example.test',username:'jogadorabcdefghijklmnop'}, {displayName:'jogadorabcdefghijklmnop'}), 'Isaac');
+  assert.equal(names.getDisplayName({email:'isaac@example.test',username:'Ninja'}), 'Ninja');
+  assert.equal(names.getDisplayName({email:'isaac@example.test',username:'Ninja'}, {displayName:'Isaac V.'}), 'Isaac V.');
+});
+
+test('language reaches catalogue and question requests and keeps server option identifiers', async () => {
+  const calls=[];
+  const load=await loadApp(async (url)=>{
+    calls.push(new URL(url)); const en=new URL(url).searchParams.get('lang')==='en';
+    return response({content:[{id:1,text:en?'Which village?':'Qual vila?',options:[{id:7,text:'Konoha'},{id:8,text:'Suna'}],contentLanguage:en?'en':'pt-BR'}],page:{totalPages:1}});
+  });
+  const i18n=await load('i18n/runtime.js'); const quizzes=await load('services/quizService.js');
+  assert.equal((await quizzes.getQuizQuestions(1))[0].text,'Qual vila?');
+  i18n.setLocale('en');
+  const english=(await quizzes.getQuizQuestions(1))[0];
+  assert.equal(english.text,'Which village?'); assert.equal(english.options[0].id,'7');
+  await quizzes.getQuizCatalog();
+  assert.deepEqual(calls.map(url=>url.searchParams.get('lang')),['pt-BR','en','en']);
+});
+
+test('cover paths use the API origin and avatar credentials never enter the URL', async () => {
+  const load=await loadApp(async()=>response({}));
+  const media=await load('utils/mediaUrl.js'); const avatar=await load('utils/avatarSource.js');
+  assert.match(media.mediaUrl('/media/quizzes/naruto.png'),/^https:\/\/[^/]+\/media\/quizzes\/naruto.png$/);
+  assert.equal(media.mediaUrl('http://localhost/photo.png'),null);
+  assert.equal(media.mediaUrl('/media/quizzes/../private'),null);
+  const source=avatar.avatarSource(1,2,'private-token');
+  assert.equal(source.headers.Authorization,'Bearer private-token');
+  assert.equal(source.headers['X-API-Version'],'2');
+  assert.equal(source.uri.includes('private-token'),false);
+  assert.notEqual(avatar.avatarSource(1,3,'private-token').uri,source.uri);
+});
+
+test('all theme and accent combinations retain readable text contrast', async () => {
+  const load=await loadApp(async()=>response({}));const palette=await load('styles/personalPalette.js');
+  function luminance(hex){const rgb=hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;}
+  function contrast(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+  for(const theme of Object.keys(palette.THEMES))for(const accent of Object.keys(palette.ACCENTS)){
+    const c=palette.getPersonalColors(theme,accent);
+    assert.ok(contrast(c.accent,c.textOnLight)>=4.5);
+    assert.ok(contrast(c.textPrimary,c.backgroundBottom)>=4.5);
+  }
+});
+
+test('explicit initiating session cannot be replaced by a later stored token', async () => {
+  let sent;
+  const load=await loadApp(async(url,options)=>{sent=options;return response({});});
+  const client=await load('services/apiClient.js');
+  await client.apiPatch('users/me/settings',{displayName:'Ninja'},{headers:{Authorization:'Bearer initiating-session'}});
+  assert.equal(sent.headers.Authorization,'Bearer initiating-session');
 });

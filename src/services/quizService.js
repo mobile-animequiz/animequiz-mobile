@@ -1,4 +1,5 @@
-import { t } from '../i18n/runtime';
+import { mediaUrl } from '../utils/mediaUrl';
+import { t, getLocale } from '../i18n/runtime';
 import { apiGet } from './apiClient';
 
 const CATEGORY_LABELS = {
@@ -22,11 +23,11 @@ function unwrapCollection(response, preferredKeys = []) {
   return [];
 }
 
-async function getAllPages(path, preferredKeys) {
+async function getAllPages(path, preferredKeys, language = getLocale()) {
   const allItems = [];
   let totalPages = 1;
   for (let page = 0; page < totalPages; page += 1) {
-    const response = await apiGet(path, { query: { page, size: PAGE_SIZE } });
+    const response = await apiGet(path, { query: { page, size: PAGE_SIZE, lang: language } });
     allItems.push(...unwrapCollection(response, preferredKeys));
     // Spring HATEOAS reports page.totalPages, including for an empty catalog.
     const reportedPages = Number(response?.page?.totalPages);
@@ -74,7 +75,11 @@ export function normalizeQuiz(resource) {
   return {
     id: String(id),
     title: String(firstValue(resource, ['title', 'name'], t("Quiz sem título"))),
-    questionCount: Number(firstValue(resource, [t("questionCount"), 'totalQuestions', 'questionsCount'], 0)) || 0,
+    questionCount: Number(firstValue(resource, ['questionCount', 'totalQuestions', 'questionsCount'], 0)) || 0,
+    imageUrl: mediaUrl(resource.imageUrl),
+    imageAltText: resource.imageAltText || resource.title,
+    timeLimitSeconds: resource.timeLimitSeconds ?? 30,
+    contentLanguage: resource.contentLanguage ?? 'pt-BR',
     difficulty: normalizeDifficulty(firstValue(resource, ['difficulty', 'level'])),
     ...category,
   };
@@ -102,24 +107,25 @@ export function normalizeQuestion(resource) {
     id: String(id),
     text: String(firstValue(resource, ['text', 'statement', 'content', 'question'], '')),
     options,
-    imageUrl: typeof resource.imageUrl === 'string' && /^https:\/\//i.test(resource.imageUrl) ? resource.imageUrl : null,
+    imageUrl: mediaUrl(resource.imageUrl),
     imageAltText: typeof resource.imageAltText === 'string' ? resource.imageAltText : t("Imagem ilustrativa do anime"),
+    contentLanguage: resource.contentLanguage ?? 'pt-BR',
     timeLimitSeconds: Number.isInteger(resource.timeLimitSeconds) && resource.timeLimitSeconds >= 5
       && resource.timeLimitSeconds <= 300 ? resource.timeLimitSeconds : 30,
   };
 }
 
-export async function getQuizCatalog() {
-  return (await getAllPages('quizzes', ['quizzes', 'quizList']))
+export async function getQuizCatalog(language = getLocale()) {
+  return (await getAllPages('quizzes', ['quizzes', 'quizList'], language))
     .map(normalizeQuiz).filter(Boolean);
 }
 
-export async function getQuizById(quizId) {
-  const response = await apiGet(`quizzes/${encodeURIComponent(quizId)}`);
+export async function getQuizById(quizId, language = getLocale()) {
+  const response = await apiGet(`quizzes/${encodeURIComponent(quizId)}`, { query: { lang: getLocale() } });
   return normalizeQuiz(response?.data ?? response?.quiz ?? response);
 }
 
-export async function getQuizQuestions(quizId) {
-  return (await getAllPages(`quizzes/${encodeURIComponent(quizId)}/questions`, ['questions', 'questionList']))
+export async function getQuizQuestions(quizId, language = getLocale()) {
+  return (await getAllPages(`quizzes/${encodeURIComponent(quizId)}/questions`, ['questions', 'questionList'], language))
     .map(normalizeQuestion).filter(Boolean);
 }

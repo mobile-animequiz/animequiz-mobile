@@ -10,7 +10,8 @@ import { textStyles } from '../styles/theme';
 export default function FavoritesScreen() {
   const router = useRouter();
   const { t } = useI18n();
-  const { favorites, loading, error, refresh, colors } = useAccount();
+  const { favorites, loading, error: settingsError, favoritesError, refresh, colors } = useAccount();
+  const error = settingsError || favoritesError;
   return <ScreenContainer scrollable={false}>
     <ScreenHeader title={t('myFavorites')} onBackPress={() => router.back()} />
     {error ? <><Text style={textStyles.error}>{error}</Text><AppButton title={t('Tentar novamente')} onPress={refresh} /></> : null}

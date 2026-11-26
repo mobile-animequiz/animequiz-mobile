@@ -1,3 +1,6 @@
+import { useAccount } from '../contexts/AccountContext';
+import useI18n from './useI18n';
+import { getDisplayName } from '../utils/displayName';
 import { t } from '../i18n/runtime';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -33,21 +36,24 @@ function normalizePlayer(user, profileResource) {
 
 export default function useHomeData() {
   const { user } = useAuth();
+  const { settings } = useAccount();
+  const { locale } = useI18n();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState(ALL_CATEGORIES_ID);
-  const loadCatalog = useCallback(() => getQuizCatalog(), []);
+  const loadCatalog = useCallback(() => getQuizCatalog(locale), [locale]);
   const userId = user?.id;
   const loadProfile = useCallback(() => userId ? getProfileByUserId(userId) : Promise.resolve(null), [userId]);
-  const catalog = useRemoteResource('catalog', loadCatalog);
+  const catalog = useRemoteResource('catalog:' + locale, loadCatalog);
   const playerData = useRemoteResource('player:' + user?.id, loadProfile);
   const quizzes = useMemo(() => catalog.data ?? [], [catalog.data]);
+  const allLabel = t('Todos');
   const categories = useMemo(() => {
     const unique = new Map();
     quizzes.forEach((quiz) => { if (quiz.categoryId && quiz.categoryId !== 'other') unique.set(quiz.categoryId, { id: quiz.categoryId, label: quiz.categoryLabel }); });
-    return [{ id: ALL_CATEGORIES_ID, label: t('Todos') }, ...unique.values()];
-  }, [quizzes]);
+    return [{ id: ALL_CATEGORIES_ID, label: allLabel }, ...unique.values()];
+  }, [quizzes, allLabel]);
   const filtered = selectedCategoryId === ALL_CATEGORIES_ID ? quizzes : quizzes.filter((quiz) => quiz.categoryId === selectedCategoryId);
-  return { player: normalizePlayer(user, playerData.data), categories, selectedCategoryId, selectCategory: setSelectedCategoryId,
+  return { player: { ...normalizePlayer(user, playerData.data), name: getDisplayName(user, settings) || t('Jogador') }, categories, selectedCategoryId, selectCategory: setSelectedCategoryId,
     quizzes: filtered, loadError: catalog.error || playerData.error, isLoadingQuizzes: catalog.loading, isRefreshing: playerData.loading,
     refreshPlayer: playerData.refresh, refreshQuizzes: catalog.refresh };
 }

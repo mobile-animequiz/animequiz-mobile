@@ -7,6 +7,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import AnimatedEntrance from '../components/AnimatedEntrance';
 import AnimatedProgress from '../components/AnimatedProgress';
 import useRemoteResource from '../hooks/useRemoteResource';
+import QuizCover from '../components/QuizCover';
 import QuestionImage from '../components/QuestionImage';
 import ScreenContainer from '../components/ScreenContainer';
 import { useAccount } from '../contexts/AccountContext';
@@ -18,20 +19,21 @@ import { remainingSeconds, createAttemptKey } from '../utils/quizRound';
 const TILES = [{ color: '#A9344D', shape: '\u25B2' }, { color: '#2051A1', shape: '\u25C6' }, { color: '#765B07', shape: '\u25CF' }, { color: '#1D725D', shape: '\u25A0' }];
 
 export default function QuizScreen() {
-  const { quizId, timed } = useLocalSearchParams();
+  const { quizId } = useLocalSearchParams();
 
   const requestedQuizId = Array.isArray(quizId) ? quizId[0] : quizId;
-  const isTimed = timed === 'true';
+  const isTimed = true;
   return <QuizRound key={requestedQuizId + ':' + isTimed} requestedQuizId={requestedQuizId} isTimed={isTimed} />;
 }
 function QuizRound({ requestedQuizId, isTimed }) {
-  useI18n();
+  const { locale } = useI18n();
   const router = useRouter();
   const scrollRef = useRef(null);
   const submittingRef = useRef(false);
   const lockedRef = useRef(false);
   const advancingRef = useRef(false);
   const deadlineRef = useRef(0);
+  const deadlineQuestion = useRef(null);
   const attemptKeyRef = useRef(null);
   if (attemptKeyRef.current == null) attemptKeyRef.current = createAttemptKey();
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -42,11 +44,11 @@ function QuizRound({ requestedQuizId, isTimed }) {
   const [submittedAnswers, setSubmittedAnswers] = useState([]);
   const [isSubmittingAttempt, setIsSubmittingAttempt] = useState(false);
   const load = useCallback(async () => {
-    const [quiz, questions] = await Promise.all([getQuizById(requestedQuizId), getQuizQuestions(requestedQuizId)]);
+    const [quiz, questions] = await Promise.all([getQuizById(requestedQuizId, locale), getQuizQuestions(requestedQuizId, locale)]);
     if (!quiz || !questions.length) throw new Error(t('Este quiz ainda não possui perguntas disponíveis.'));
     return { quiz, questions };
-  }, [requestedQuizId]);
-  const remote = useRemoteResource(requestedQuizId, load);
+  }, [requestedQuizId, locale]);
+  const remote = useRemoteResource(requestedQuizId + ":" + locale, load);
   const quiz = remote.data?.quiz;
   const questions = remote.data?.questions ?? [];
   const isLoadingQuiz = remote.loading;
@@ -63,7 +65,10 @@ function QuizRound({ requestedQuizId, isTimed }) {
 
   useEffect(() => {
     if (!question || !isTimed || isConfirmed || isLoadingQuiz) return undefined;
-    deadlineRef.current = Date.now() + question.timeLimitSeconds * 1000;
+    if (deadlineQuestion.current !== question.id) {
+      deadlineQuestion.current = question.id;
+      deadlineRef.current = Date.now() + question.timeLimitSeconds * 1000;
+    }
     const tick = () => {
       const remaining = remainingSeconds(deadlineRef.current, Date.now());
       setSecondsLeft(remaining);
@@ -98,6 +103,7 @@ function QuizRound({ requestedQuizId, isTimed }) {
 
   function restart() {
     lockedRef.current = false;
+    deadlineQuestion.current = null;
     advancingRef.current = false;
     attemptKeyRef.current = createAttemptKey();
     setQuestionIndex(0); setSelectedIndex(null); setIsConfirmed(false); setTimedOut(false); setSubmittedAnswers([]);
@@ -123,7 +129,8 @@ function QuizRound({ requestedQuizId, isTimed }) {
     setIsSubmittingAttempt(true);
     try {
       const result = await submitQuizAttempt(quiz.id, submittedAnswers, attemptKeyRef.current);
-      router.replace({ pathname: '/result', params: { result: JSON.stringify(result) } });
+      // Localize display metadata only; all grading numbers remain the server response.
+      router.replace({ pathname: '/result', params: { result: JSON.stringify({ ...result, quizTitle: quiz.title }) } });
     } catch (error) {
       Alert.alert(t("Não foi possível enviar"), t('retryAttempt', { message: error.message }));
     } finally {
@@ -152,6 +159,8 @@ function QuizRound({ requestedQuizId, isTimed }) {
       <View style={{ marginHorizontal: metrics.homePaddingX }}><AnimatedProgress value={(questionIndex + 1) / total} label={t('Progresso da partida')} height={5} /></View>
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <AnimatedEntrance key={question.id}>
+        {questionIndex === 0 ? <QuizCover quiz={quiz} height={150} /> : null}
+        {question.contentLanguage !== locale ? <Text style={styles.hint}>{t('contentFallback')}</Text> : null}
         <QuestionImage key={`${question.id}-${question.imageUrl}`} uri={question.imageUrl} description={question.imageAltText} />
         <Text style={styles.question} accessibilityRole="header">{question.text}</Text>
         <Text style={styles.hint}>{isConfirmed ? t("Sua escolha foi encerrada") : t("Escolha uma alternativa")}</Text>

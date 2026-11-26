@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const { getPublicResource } = require('./api-preflight.cjs');
 
 const root = path.resolve(__dirname, '..');
 const readJson = (file) => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
@@ -70,21 +71,16 @@ async function main() {
   for (const group of ['dependencies', 'devDependencies']) {
     assert.deepEqual(lock.packages[''][group], pkg[group], `Lockfile divergente: ${group}.`);
   }
-  console.log(`OK configuração: ${manifest.android.package}; SDK 57; APK interno; API ${url.origin} (contrato 1)`);
+  console.log(`OK configuração: ${manifest.android.package}; SDK 57; APK interno; API ${url.origin} (contrato 2)`);
   console.log('O ícone existente foi validado como arquivo; a aprovação visual da marca é separada.');
   if (!process.argv.includes('--online')) {
-    console.log('Rede não testada. Execute npm run check:apk -- --online antes do build.');
+    if (!process.argv.includes('--config-only')) console.log('Para conferir também a API pública, execute npm run check:apk -- --online.');
     return;
   }
+  const deadline = Date.now() + 180000;
+  // Public health/catalogue smoke check uses the public V1 contract; the authenticated app uses V2.
   for (const endpoint of ['/api/versioned/status', '/quizzes?page=0&size=1']) {
-    console.log(`Consultando ${endpoint}...`);
-    const result = await fetch(new URL(endpoint, url), {
-      headers: { Accept: 'application/json', 'X-API-Version': '1' },
-      signal: AbortSignal.timeout(45000), redirect: 'error',
-    });
-    assert(result.ok, `${endpoint}: HTTP ${result.status}.`);
-    assert(/json/i.test(result.headers.get('content-type') ?? ''), `${endpoint}: resposta não é JSON.`);
-    const body = await result.json();
+    const body = await getPublicResource(url.origin, endpoint, { deadline, waitForJson: endpoint === '/api/versioned/status' });
     if (endpoint === '/api/versioned/status') {
       assert(String(body.version) === '1' && body.status === 'ok', 'A API não confirmou o contrato 1.');
     } else {

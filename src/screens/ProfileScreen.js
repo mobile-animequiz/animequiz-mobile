@@ -1,3 +1,4 @@
+import { getDisplayName } from '../utils/displayName';
 import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -30,7 +31,7 @@ export default function ProfileScreen() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [message, setMessage] = useState('');
   async function choosePhoto() {
-    if (photoBusy || busy) return;
+    if (photoBusy || blocked) return;
     setPhotoBusy(true); setMessage('');
     try {
       // The system photo picker grants access only to the selected image.
@@ -44,13 +45,16 @@ export default function ProfileScreen() {
       const image = await context.renderAsync();
       const resized = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
       const updated = await account.uploadPhoto(resized);
-      if (updated) setMessage(t('profileSaved'));
-    } catch (failure) { Alert.alert(t('saveFailed'), failure.name === 'ApiError' || failure.name === 'ApiConnectionError' ? failure.message : t('photoFailed')); }
+      if (updated) setMessage('profileSaved');
+    } catch (failure) { Alert.alert(t('saveFailed'), ['ApiError', 'ApiConnectionError', 'AvatarValidationError'].includes(failure.name) ? failure.message : t('photoFailed')); }
     finally { setPhotoBusy(false); }
   }
   async function removePhoto() {
-    try { const updated = await account.removePhoto(); if (updated) setMessage(t('profileSaved')); }
+    if (blocked || photoBusy) return;
+    setPhotoBusy(true); setMessage('');
+    try { const updated = await account.removePhoto(); if (updated) setMessage('profileSaved'); }
     catch (failure) { Alert.alert(t('saveFailed'), failure.message); }
+    finally { setPhotoBusy(false); }
   }
   async function linkGoogle() {
     setGoogleBusy(true);
@@ -59,7 +63,7 @@ export default function ProfileScreen() {
       if (!idToken) return;
       await apiPost('auth/google/link', { idToken });
       await refresh();
-      setMessage(t('googleLinked'));
+      setMessage('googleLinked');
     } catch (failure) { Alert.alert(t('googleFailed'), failure.status === 409 ? t('googleConflict') : failure.message); }
     finally { setGoogleBusy(false); }
   }
@@ -79,13 +83,13 @@ export default function ProfileScreen() {
       {error ? <><Text style={textStyles.error}>{error}</Text><AppButton title={t('Tentar novamente')} onPress={refresh} /></> : null}
       <View style={{ alignItems: 'center', gap: 12 }}>
         <AccountAvatar size={88} />
-        <Text style={textStyles.title}>{settings.displayName || user?.username}</Text>
+        <Text style={textStyles.title}>{getDisplayName(user, settings) || t('Jogador')}</Text>
         <Text style={textStyles.caption}>{user?.email}</Text>
       </View>
       <AppButton title={t('choosePhoto')} onPress={choosePhoto} isLoading={photoBusy} disabled={blocked} />
-      {settings.hasAvatar ? <AppButton title={t('removePhoto')} onPress={removePhoto} disabled={blocked || photoBusy} /> : null}
-      <NameEditor key={String(user?.id) + ':' + settings.displayName} initial={settings.displayName} onSave={account.update} disabled={blocked} onSaved={() => setMessage(t('profileSaved'))} />
-      {message ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[textStyles.body, { color: colors.difficultyEasy }]}>{message}</Text> : null}
+      {settings.hasAvatar ? <AppButton title={t('removePhoto')} onPress={removePhoto} isLoading={photoBusy} disabled={blocked || photoBusy} /> : null}
+      <NameEditor key={String(user?.id) + ':' + settings.displayName} initial={getDisplayName(user, settings)} onSave={account.update} disabled={blocked} onSaved={() => setMessage('profileSaved')} />
+      {message ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[textStyles.body, { color: colors.difficultyEasy }]}>{t(message)}</Text> : null}
       <View style={{ padding: 18, gap: 8, borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 20, backgroundColor: colors.fieldFill }}>
         <Text style={textStyles.heading}>{t('Nível')} {profile.level} · {t(profile.rankTitle)}</Text>
         <Text style={textStyles.body}>{profile.xp} XP · {profile.completedQuizzes} {t('Quizzes concluídos')}</Text>
@@ -111,14 +115,14 @@ function NameEditor({ initial, onSave, onSaved, disabled }) {
   const [saving, setSaving] = useState(false);
   async function save() {
     const displayName = name.trim();
-    if (displayName.length < 2 || displayName.length > 50 || /[\u0000-\u001f\u007f]/.test(displayName)) { setError(t('invalidName')); return; }
+    if (displayName.length < 2 || displayName.length > 50 || /[\u0000-\u001f\u007f]/.test(displayName)) { setError('invalidName'); return; }
     setSaving(true); setError('');
     try { const updated = await onSave({ displayName }); if (updated) onSaved(); }
     catch (failure) { setError(failure.message); }
     finally { setSaving(false); }
   }
   return <View style={{ gap: 10 }}><Text style={textStyles.body}>{t('displayName')}</Text>
-    <TextField value={name} onChangeText={setName} placeholder={t('displayName')} error={error} maxLength={50} editable={!disabled && !saving} accessibilityLabel={t('displayName')} />
+    <TextField value={name} onChangeText={setName} placeholder={t('displayName')} error={error ? t(error) : ''} maxLength={50} editable={!disabled && !saving} accessibilityLabel={t('displayName')} />
     <AppButton title={t('saveProfile')} onPress={save} isLoading={saving} disabled={disabled} />
   </View>;
 }

@@ -1,0 +1,16 @@
+export const experienceMessages = {
+  retryPhoto: { 'pt-BR': 'Foto indisponível. Toque para tentar novamente.', en: 'Photo unavailable. Tap to retry.' },
+  quizCover: { 'pt-BR': 'Capa do quiz', en: 'Quiz cover' },
+  questionTime: { 'pt-BR': '{seconds}s por pergunta', en: '{seconds}s per question' },
+  difficultyTimes: { 'pt-BR': 'Fácil 30s · Médio 20s · Difícil 12s', en: 'Easy 30s · Medium 20s · Hard 12s' },
+  contentFallback: { 'pt-BR': 'Esta pergunta está disponível em português.', en: 'This custom question is available in Portuguese. A complete English translation has not been added yet.' },
+  questionLanguage: { 'pt-BR': 'As perguntas acompanham seu idioma. Conteúdo personalizado sem tradução usa português.', en: 'Questions follow your language. Custom content without a full translation falls back to Portuguese.' },
+  'Preparando a partida.': { 'pt-BR': 'Preparando a partida.', en: 'Preparing the round.' },
+  'Enviando resultado.': { 'pt-BR': 'Enviando resultado.', en: 'Submitting results.' },
+  Jogador: { 'pt-BR': 'Jogador', en: 'Player' },
+  ocean: { 'pt-BR': 'Oceano', en: 'Ocean' },
+  forest: { 'pt-BR': 'Floresta', en: 'Forest' },
+  amber: { 'pt-BR': 'Âmbar', en: 'Amber' },
+  mint: { 'pt-BR': 'Menta', en: 'Mint' },
+  coral: { 'pt-BR': 'Coral', en: 'Coral' },
+};
