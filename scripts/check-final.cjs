@@ -15,18 +15,18 @@ async function main(){
   assert.equal(profile.extends,'current');
   assert.equal(profile.autoIncrement,true);
   assert.equal(profile.environment,'preview');
-  console.log('OK perfil final: APK interno, contrato 1, assinatura/projeto existentes e versionCode incremental.');
+  console.log('OK perfil final: APK interno, contrato 2, assinatura/projeto existentes e versionCode incremental.');
   if(!process.argv.includes('--online')){console.log('Backend não verificado; use --online antes do build final.');return;}
   const origin=eas.build.current.env.EXPO_PUBLIC_API_URL;
   const deadline=Date.now()+180000;
   console.log('Aguardando a API pública. A primeira resposta pode demorar se o serviço estiver iniciando.');
   const status=await getPublicResource(origin,'/api/versioned/status',{deadline,waitForJson:true});
   assert(String(status.version)==='1'&&status.status==='ok','A API não confirmou o contrato 1.');
-  const openapi=await getPublicResource(origin,'/api-docs/v1',{deadline});
-  for(const endpoint of ['/users/me/settings','/users/me/avatar','/users/me/favorites','/users/me/favorites/{quizId}','/auth/google','/auth/google/link','/auth/forgot-password','/auth/reset-password'])
+  const openapi=await getPublicResource(origin,'/api-docs/v2',{deadline});
+  for(const endpoint of ['/users/me/settings','/users/me/avatar','/users/me/favorites','/users/me/favorites/{quizId}','/quizzes/{quizId}/questions','/auth/login','/auth/register'])
     assert(openapi.paths?.[endpoint],'Publique a API atualizada antes do APK: falta '+endpoint);
-  await getPublicResource(origin,'/reset-password.html',{deadline,format:'html'});
-  console.log('OK contratos e página de redefinição disponíveis. Google/e-mail reais e testes nos celulares continuam validações separadas.');
+  assert(openapi.paths?.['/quizzes']?.get?.parameters?.some(parameter=>parameter.name==='lang'),'Publique a API com suporte a idioma antes do APK.');
+  console.log('OK contratos V2 e idioma disponíveis. Google/e-mail reais e testes nos celulares continuam validações separadas.');
 }
 main().catch(error=>{console.error('APK final interrompido: '+error.message);if(error.cause?.code)console.error('Rede: '+error.cause.code);process.exitCode=1;});
 

@@ -44,3 +44,6 @@ credentials.json
 /ios
 /android
 /build-cache/
+
+# Local verification bundle
+web-check/

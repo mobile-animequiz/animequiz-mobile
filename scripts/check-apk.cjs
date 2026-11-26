@@ -71,13 +71,14 @@ async function main() {
   for (const group of ['dependencies', 'devDependencies']) {
     assert.deepEqual(lock.packages[''][group], pkg[group], `Lockfile divergente: ${group}.`);
   }
-  console.log(`OK configuração: ${manifest.android.package}; SDK 57; APK interno; API ${url.origin} (contrato 1)`);
+  console.log(`OK configuração: ${manifest.android.package}; SDK 57; APK interno; API ${url.origin} (contrato 2)`);
   console.log('O ícone existente foi validado como arquivo; a aprovação visual da marca é separada.');
   if (!process.argv.includes('--online')) {
     if (!process.argv.includes('--config-only')) console.log('Para conferir também a API pública, execute npm run check:apk -- --online.');
     return;
   }
   const deadline = Date.now() + 180000;
+  // Public health/catalogue smoke check uses the public V1 contract; the authenticated app uses V2.
   for (const endpoint of ['/api/versioned/status', '/quizzes?page=0&size=1']) {
     const body = await getPublicResource(url.origin, endpoint, { deadline, waitForJson: endpoint === '/api/versioned/status' });
     if (endpoint === '/api/versioned/status') {

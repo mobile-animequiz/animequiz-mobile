@@ -1,74 +1,69 @@
-# AnimeQuiz 1.1.0 — revisão atual
+# AnimeQuiz Mobile 1.2.0
 
-[Guia para o APK e estado real da entrega](docs/REVISAO_FINAL.md). Lockfile atualizado, 17 testes e lint completo aprovados. Visual original restaurado e seletor de API removido. Ainda falta o build assinado e a validação física.
+Aplicativo Expo SDK 57 / React Native 0.86 com Expo Router para jogar quizzes da API Java. Esta revisão fixa o contrato **V2** internamente, sem seletor de versão para o jogador.
 
-# AnimeQuiz Mobile
+Leia o [guia da entrega](docs/ENTREGA_V2.md) e as [três propostas de ícone](docs/ICON_CONCEPTS.md). O ícone atual foi preservado, aguardando aprovação. Documentos antigos descrevem etapas anteriores e não substituem este guia.
 
-Revisão para apresentação e correção de foto no Expo 57: [ENTREGA_ACADEMICA.md](docs/ENTREGA_ACADEMICA.md).
+## Instalação e desenvolvimento
 
-App Expo SDK 57 / React Native 0.86 para consumir a API Java do AnimeQuiz.
-
-## Instalar e executar
-
-Use Node compatível com o Expo SDK 57 e acesso à internet. Na pasta `mobile`:
+Na pasta deste repositório, execute separadamente:
 
 ```powershell
-npm install
-npx expo install --fix
-npx expo-doctor
-npm test
-npm run lint
-npx expo start
+npm.cmd ci
+npm.cmd run start:go
 ```
 
-O `package-lock.json` recebido estava desatualizado: as versões de Expo, Router e Splash não correspondiam ao `package.json`, e o SecureStore não constava no lock. Ele foi retirado desta cópia para permitir uma instalação coerente. `npm install` cria um novo lock; revise e versione esse arquivo antes de compartilhar ou repetir o build. Não use `npm ci` antes dessa instalação.
+O lockfile está versionado. Não é necessário executar `expo install --fix` nem `npm audit fix --force` para iniciar. `npm start expo` é incorreto: o argumento extra é interpretado como uma pasta.
 
-As dependências continuam no SDK 57. Não use um Expo SDK diferente apenas para conseguir instalar.
+## Configurar a API
 
-## Conectar à API
-
-Copie `.env.example` para `.env.local` se precisar substituir a URL padrão:
+Copie `.env.example` para `.env.local` se precisar substituir a origem:
 
 ```dotenv
 EXPO_PUBLIC_API_URL=https://animequiz-api-wst8.onrender.com
-EXPO_PUBLIC_API_VERSION=1
 ```
 
-Use apenas a origem da API: sem `/api/v1`, `/quizzes` ou `/auth` no final. O versionamento ocorre pelo cabeçalho `X-API-Version`.
+Use a origem sem `/api/v2` ou `/quizzes`. O app envia `X-API-Version: 2`; variáveis antigas de versão são ignoradas. Publique a API desta revisão antes de testar capas e traduções no servidor público.
 
-No celular físico, `localhost` identifica o próprio celular. Para testar uma API local no Expo Go, coloque o IP do computador, por exemplo `http://192.168.0.10:8080`; mantenha os dispositivos na mesma rede. O APK de apresentação deve usar uma API HTTPS acessível pelo celular. Não foi acrescentada permissão para HTTP em builds de produção.
+No emulador Android, `http://10.0.2.2:8080` acessa o computador. No celular físico com Expo Go, use o IP do computador na mesma rede. `localhost` no celular aponta para o próprio celular. Um APK distribuído deve usar HTTPS público. Nunca coloque segredos em `EXPO_PUBLIC_*`.
 
-Variáveis `EXPO_PUBLIC_*` vão no aplicativo. Não coloque JWT_SECRET, senha de banco ou chaves privadas nessas variáveis.
+## Recursos
 
-## Funcionalidades e versões
-
-| Ação | Comportamento |
+| Recurso | Comportamento |
 |---|---|
-| Cadastro/login | Usa `/auth/register` e `/auth/login`; guarda o JWT no SecureStore nativo. |
-| Home | Carrega catálogo, perfil e estatísticas da API. |
-| V1/V2 | A Home verifica a versão no servidor antes de trocar e envia o cabeçalho em todas as requisições seguintes. A seleção dura a sessão atual do app. |
-| V1 | Questões e alternativas no contrato original, sem imagens. |
-| V2 | Acrescenta imagem opcional, texto acessível e tempo sugerido. O servidor precisa ser atualizado com a API deste pacote. |
-| Quiz | Alternativas coloridas, seleção destacada, progresso e confirmação da resposta. |
-| Cronômetro | Opcional na Home. Ao zerar, a pergunta fica sem resposta. O tempo continua contando quando o app vai para segundo plano. |
-| Falha de imagem | Exibe uma mensagem e mantém a pergunta disponível. |
-| Resultado | Usa os pontos e acertos retornados pela API. A confirmação por pergunta não informa acerto ou erro. |
-| Reenvio | Reutiliza `X-Idempotency-Key` ao tentar enviar novamente a mesma partida. |
+| Sessão | JWT no SecureStore nativo; dados privados exigem autenticação. |
+| Nome | Personalizado/cadastrado tem prioridade; sem nome real, usa o primeiro trecho do e-mail com inicial maiúscula. |
+| Foto | Galeria, recorte/conversão, multipart Expo File, leitura autenticada, atualização de cache e remoção persistida. |
+| Preferências | Nome, idioma, tema e destaque salvos por conta na API. |
+| Idioma | Português, inglês ou dispositivo; catálogo, perguntas, alternativas e feedback acompanham a seleção. Conteúdo personalizado sem tradução completa volta a português. |
+| Aparência | Quatro temas escuros e seis destaques com contraste verificado. |
+| Capas | PNGs originais da API ou URL HTTPS definida pelo ADMIN; falha não bloqueia o quiz. |
+| Dificuldade | Fácil 30 s, médio 20 s, difícil 12 s; relógio atualizado ao voltar do segundo plano. |
+| Pontuação | API corrige por IDs; 10/20/30 por acerto; XP considera o melhor resultado de cada quiz. |
+| Favoritos | Persistidos por conta; falha de favoritos não impede carregar o perfil. |
+| Google | SDK sob demanda; exige binário nativo e OAuth configurado. Expo Go não oferece esse módulo. |
 
-O cronômetro é uma regra da interface, sem bônus por velocidade nem fiscalização no servidor. Se todas as perguntas expirarem sem resposta, a partida não gera score: o app permite recomeçar ou voltar ao início. O projeto atual oferece partidas individuais; salas e partidas simultâneas não foram implementadas.
+O cronômetro é uma regra de interface, sem fiscalização de tempo no servidor ou bônus de velocidade. Rodada sem respostas não gera score. O catálogo inicial contém oito quizzes com 16 perguntas cada, em português e inglês.
 
-## Gerar APK de apresentação
-
-Atualize primeiro o backend publicado. Confirme na Home que V2 se conecta e que as imagens aparecem.
+## Verificar
 
 ```powershell
-npx eas-cli@latest login
-npx eas-cli@latest whoami
-npm run build:apk
+npm.cmd run lint -- --no-cache
+npm.cmd test
+npm.cmd run typecheck
+node scripts/check-apk.cjs --config-only
 ```
 
-O comando usa o perfil `preview` de `eas.json`, com distribuição interna e `android.buildType: apk`. O perfil inicia em V2. O projeto Expo existente foi preservado (`extra.eas.projectId`); a conta autenticada precisa ter acesso a ele. Se a CLI solicitar configuração de assinatura Android, siga o fluxo da sua conta. Não envie chaves de assinatura no repositório.
+Esta revisão passou nos **36 testes**, lint, TypeScript e exportação web. O guia detalha a verificação integrada e as etapas que dependem do deploy e dos celulares.
 
-Depois que o serviço concluir o build, baixe o APK pelo link retornado e instale no celular. Abra o app sem o Metro e valide cadastro/login, partida e resultado. O APK não foi produzido neste ambiente: faltam as dependências e a CLI de build, e a rede necessária para instalá-las está indisponível.
+## Gerar APK
 
-Referências oficiais: [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), [APK Android](https://docs.expo.dev/build-reference/apk/).
+Após publicar e testar a API compatível, entre na conta Expo com acesso ao projeto existente:
+
+```powershell
+npm.cmd run expo:login
+npm.cmd run expo:whoami
+npm.cmd run build:apk:final
+```
+
+O perfil `final` gera APK interno e incrementa o versionCode remoto. Projeto, pacote Android e assinatura existentes foram preservados. O EAS informa o link de download ao concluir. Não foi gerado um APK novo nesta revisão; o novo ícone ainda depende de aprovação. Alterações de ícone exigem reconstruir e reinstalar o APK.
